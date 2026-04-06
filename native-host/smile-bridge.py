@@ -96,6 +96,18 @@ def main():
         send_message({"success": False, "error": "Empty command"})
         return
 
+    # Security: only allow known command patterns
+    import re
+    ALLOWED_PATTERNS = [
+        r'^git clone https?://[^\s;|&]+',          # git clone
+        r'^claude\s',                                # claude code
+        r'^codex\s',                                 # codex cli
+        r'^open -a\s',                               # open app (Cursor etc)
+    ]
+    if not any(re.match(p, command) for p in ALLOWED_PATTERNS):
+        send_message({"success": False, "error": "Command not allowed"})
+        return
+
     try:
         if preferred == "auto":
             terminal = detect_terminal() or "Terminal"

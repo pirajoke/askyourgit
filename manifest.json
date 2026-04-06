@@ -4,6 +4,9 @@
   "version": "2.2.0",
   "description": "One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
   "background": {
     "service_worker": "background.js"
   },

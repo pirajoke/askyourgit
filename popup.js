@@ -37,7 +37,7 @@ chrome.runtime.sendMessage({ action: 'check-bridge' }, (response) => {
   } else {
     bridgeStatus.textContent = 'Not installed';
     bridgeStatus.className = 'bridge-badge bridge-disconnected';
-    bridgeHint.innerHTML = 'Run <code>bash native-host/install.sh</code> to enable';
+    bridgeHint.textContent = 'Run: bash native-host/install.sh to enable';
   }
 });
 
@@ -93,35 +93,66 @@ function renderStats(stats) {
   }
 
   const tiers = ['common', 'rare', 'epic', 'legendary'];
-  tiersEl.innerHTML = tiers.map(t => {
+  tiersEl.textContent = '';
+  tiers.forEach(t => {
     const count = stats.tiers[t] || 0;
-    if (count === 0) return '';
+    if (count === 0) return;
     const pct = Math.round((count / stats.total) * 100);
-    return `<div class="stats-tier-row">
-      <span class="stats-tier-dot" style="background:${TIER_COLORS[t]}"></span>
-      <span class="stats-tier-name">${t}</span>
-      <span class="stats-tier-bar"><span class="stats-tier-fill" style="width:${pct}%;background:${TIER_COLORS[t]}"></span></span>
-      <span class="stats-tier-count">${count}</span>
-    </div>`;
-  }).join('');
+    const row = document.createElement('div');
+    row.className = 'stats-tier-row';
+    const dot = document.createElement('span');
+    dot.className = 'stats-tier-dot';
+    dot.style.background = TIER_COLORS[t];
+    const name = document.createElement('span');
+    name.className = 'stats-tier-name';
+    name.textContent = t;
+    const bar = document.createElement('span');
+    bar.className = 'stats-tier-bar';
+    const fill = document.createElement('span');
+    fill.className = 'stats-tier-fill';
+    fill.style.width = `${pct}%`;
+    fill.style.background = TIER_COLORS[t];
+    bar.appendChild(fill);
+    const cnt = document.createElement('span');
+    cnt.className = 'stats-tier-count';
+    cnt.textContent = count;
+    row.append(dot, name, bar, cnt);
+    tiersEl.appendChild(row);
+  });
 }
 
 function renderHistory(history) {
   const el = document.getElementById('share-history');
+  el.textContent = '';
   if (!history || history.length === 0) {
-    el.innerHTML = '<span class="hint" style="margin-left:0">No shares yet</span>';
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.style.marginLeft = '0';
+    hint.textContent = 'No shares yet';
+    el.appendChild(hint);
     return;
   }
 
-  el.innerHTML = history.slice(0, 5).map(h => {
+  history.slice(0, 5).forEach(h => {
     const ago = timeAgo(h.time);
-    return `<div class="history-row">
-      <span class="history-emoji">${h.emoji}</span>
-      <span class="history-repo">${h.repo}</span>
-      <span class="history-tier" style="color:${TIER_COLORS[h.tier]}">${h.tier}</span>
-      <span class="history-time">${ago}</span>
-    </div>`;
-  }).join('');
+    const row = document.createElement('div');
+    row.className = 'history-row';
+    const emoji = document.createElement('span');
+    emoji.className = 'history-emoji';
+    emoji.textContent = h.emoji;
+    const repo = document.createElement('span');
+    repo.className = 'history-repo';
+    repo.textContent = h.repo;
+    const tier = document.createElement('span');
+    tier.className = 'history-tier';
+    tier.style.color = TIER_COLORS[h.tier];
+    tier.textContent = h.tier;
+    const time = document.createElement('span');
+    time.className = 'history-time';
+    time.textContent = ago;
+    row.append(emoji, repo, tier, time);
+    el.appendChild(row);
+  });
 }
 
 function timeAgo(ts) {

@@ -407,15 +407,32 @@
 
       const modal = document.createElement('div');
       modal.className = 'ai-install-confirm-modal';
-      modal.innerHTML = `
-        <div class="ai-install-confirm-icon">${toolIcon}</div>
-        <div class="ai-install-confirm-title">Install with ${toolLabel}?</div>
-        <div class="ai-install-confirm-repo">${repoName}</div>
-        <div class="ai-install-confirm-actions">
-          <button class="ai-install-confirm-btn ai-install-confirm-cancel">Cancel</button>
-          <button class="ai-install-confirm-btn ai-install-confirm-ok">⚡ Install</button>
-        </div>
-      `;
+
+      const iconEl = document.createElement('div');
+      iconEl.className = 'ai-install-confirm-icon';
+      iconEl.textContent = toolIcon;
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'ai-install-confirm-title';
+      titleEl.textContent = `Install with ${toolLabel}?`;
+
+      const repoEl = document.createElement('div');
+      repoEl.className = 'ai-install-confirm-repo';
+      repoEl.textContent = repoName;
+
+      const actions = document.createElement('div');
+      actions.className = 'ai-install-confirm-actions';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'ai-install-confirm-btn ai-install-confirm-cancel';
+      cancelBtn.textContent = 'Cancel';
+
+      const okBtn = document.createElement('button');
+      okBtn.className = 'ai-install-confirm-btn ai-install-confirm-ok';
+      okBtn.textContent = '\u26A1 Install';
+
+      actions.append(cancelBtn, okBtn);
+      modal.append(iconEl, titleEl, repoEl, actions);
 
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
@@ -425,8 +442,8 @@
         setTimeout(() => { overlay.remove(); resolve(result); }, 150);
       };
 
-      modal.querySelector('.ai-install-confirm-cancel').addEventListener('click', () => cleanup(false));
-      modal.querySelector('.ai-install-confirm-ok').addEventListener('click', () => cleanup(true));
+      cancelBtn.addEventListener('click', () => cleanup(false));
+      okBtn.addEventListener('click', () => cleanup(true));
       overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
     });
   }
@@ -474,7 +491,12 @@
         header.className = 'ai-install-stack-header';
         const badges = [...stackInfo.stacks];
         if (stackInfo.hasDocker) badges.push('Docker');
-        header.innerHTML = badges.map(s => `<span class="ai-install-stack-badge">${s}</span>`).join('');
+        badges.forEach(s => {
+          const badge = document.createElement('span');
+          badge.className = 'ai-install-stack-badge';
+          badge.textContent = s;
+          header.appendChild(badge);
+        });
         dropdown.appendChild(header);
       }
 
@@ -482,11 +504,22 @@
       if (trustInfo) {
         const trustBar = document.createElement('div');
         trustBar.className = 'ai-install-trust-bar';
-        const parts = [];
-        if (trustInfo.stars) parts.push(`<span class="ai-install-trust-item">★ ${trustInfo.stars}</span>`);
-        if (trustInfo.license) parts.push(`<span class="ai-install-trust-item">⚖ ${trustInfo.license}</span>`);
-        if (trustInfo.lastCommit) parts.push(`<span class="ai-install-trust-item">⏱ ${trustInfo.lastCommit}</span>`);
-        trustBar.innerHTML = parts.join('<span class="ai-install-trust-sep">·</span>');
+        const items = [];
+        if (trustInfo.stars) items.push(`★ ${trustInfo.stars}`);
+        if (trustInfo.license) items.push(`⚖ ${trustInfo.license}`);
+        if (trustInfo.lastCommit) items.push(`⏱ ${trustInfo.lastCommit}`);
+        items.forEach((text, i) => {
+          if (i > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'ai-install-trust-sep';
+            sep.textContent = '·';
+            trustBar.appendChild(sep);
+          }
+          const span = document.createElement('span');
+          span.className = 'ai-install-trust-item';
+          span.textContent = text;
+          trustBar.appendChild(span);
+        });
         dropdown.appendChild(trustBar);
       }
 
@@ -495,7 +528,7 @@
       if (hasSmileBadge) {
         const enabled = document.createElement('div');
         enabled.className = 'ai-install-smile-enabled';
-        enabled.innerHTML = '⚡ SMILE-enabled repo';
+        enabled.textContent = '⚡ SMILE-enabled repo';
         dropdown.appendChild(enabled);
       }
 
@@ -512,7 +545,13 @@
         if (cmd.id === settings.defaultClient) {
           item.classList.add('ai-install-default');
         }
-        item.innerHTML = `<span class="ai-install-item-icon">${cmd.icon}</span><span class="ai-install-item-label">${cmd.label}</span>`;
+        const cmdIcon = document.createElement('span');
+        cmdIcon.className = 'ai-install-item-icon';
+        cmdIcon.textContent = cmd.icon;
+        const cmdLabel = document.createElement('span');
+        cmdLabel.className = 'ai-install-item-label';
+        cmdLabel.textContent = cmd.label;
+        item.append(cmdIcon, cmdLabel);
         item.addEventListener('click', async (e) => {
           e.stopPropagation();
           closeDropdown();
@@ -531,7 +570,13 @@
       // Badge
       const badgeItem = document.createElement('button');
       badgeItem.className = 'ai-install-dropdown-item ai-install-badge-item';
-      badgeItem.innerHTML = '<span class="ai-install-item-icon">🏷️</span><span class="ai-install-item-label">Copy badge for README</span>';
+      const badgeIcon = document.createElement('span');
+      badgeIcon.className = 'ai-install-item-icon';
+      badgeIcon.textContent = '🏷️';
+      const badgeLabel = document.createElement('span');
+      badgeLabel.className = 'ai-install-item-label';
+      badgeLabel.textContent = 'Copy badge for README';
+      badgeItem.append(badgeIcon, badgeLabel);
       badgeItem.addEventListener('click', async (e) => {
         e.stopPropagation();
         const badge = `[![Install with AI](https://img.shields.io/badge/Install_with-AI_%E2%9A%A1-blueviolet?style=for-the-badge)](${repoInfo.url})`;
@@ -545,7 +590,17 @@
       const shareItem = document.createElement('button');
       shareItem.className = 'ai-install-dropdown-item ai-install-share-item';
       const packLabel = EMOJI_PACKS[settings.emojiPack]?.label || 'Animals';
-      shareItem.innerHTML = `<span class="ai-install-item-icon">🎲</span><span class="ai-install-item-label">Share NFT <span class="ai-install-pack-tag">${packLabel}</span></span>`;
+      const shareIcon = document.createElement('span');
+      shareIcon.className = 'ai-install-item-icon';
+      shareIcon.textContent = '🎲';
+      const shareLbl = document.createElement('span');
+      shareLbl.className = 'ai-install-item-label';
+      shareLbl.textContent = 'Share NFT ';
+      const packTag = document.createElement('span');
+      packTag.className = 'ai-install-pack-tag';
+      packTag.textContent = packLabel;
+      shareLbl.appendChild(packTag);
+      shareItem.append(shareIcon, shareLbl);
       shareItem.addEventListener('click', async (e) => {
         e.stopPropagation();
         const nft = rollEmoji(settings.emojiPack);
@@ -561,12 +616,29 @@
         let spinCount = 0;
         const spinInterval = setInterval(() => {
           const rnd = allEmojis[Math.floor(Math.random() * allEmojis.length)];
-          shareItem.innerHTML = `<span class="ai-install-item-icon ai-install-spin-emoji">${rnd}</span><span class="ai-install-item-label" style="color:#8b949e">Rolling...</span>`;
+          shareItem.textContent = '';
+          const spinIcon = document.createElement('span');
+          spinIcon.className = 'ai-install-item-icon ai-install-spin-emoji';
+          spinIcon.textContent = rnd;
+          const spinLabel = document.createElement('span');
+          spinLabel.className = 'ai-install-item-label';
+          spinLabel.style.color = '#8b949e';
+          spinLabel.textContent = 'Rolling...';
+          shareItem.append(spinIcon, spinLabel);
           spinCount++;
           if (spinCount >= 8) {
             clearInterval(spinInterval);
             // Reveal!
-            shareItem.innerHTML = `<span class="ai-install-nft-emoji-inline${glowClass}">${nft.emoji}</span><span class="ai-install-item-label" style="color:${tierColors[nft.tier]};font-weight:700">${nft.label} ${stars}</span>`;
+            shareItem.textContent = '';
+            const revealEmoji = document.createElement('span');
+            revealEmoji.className = 'ai-install-nft-emoji-inline' + glowClass;
+            revealEmoji.textContent = nft.emoji;
+            const revealLabel = document.createElement('span');
+            revealLabel.className = 'ai-install-item-label';
+            revealLabel.style.color = tierColors[nft.tier];
+            revealLabel.style.fontWeight = '700';
+            revealLabel.textContent = `${nft.label} ${stars}`;
+            shareItem.append(revealEmoji, revealLabel);
             recordRoll(nft, repoInfo.url);
             showSharePicker(dropdown, nft, repoInfo.url, settings.shareTemplate);
           }
