@@ -1,12 +1,31 @@
 {
   "manifest_version": 3,
   "name": "AI Install",
-  "version": "1.0.0",
-  "description": "One-click AI-powered installation for any GitHub repo",
+  "version": "2.1.0",
+  "description": "One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo",
   "permissions": ["clipboardWrite", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "quick-install": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+I",
+        "mac": "Command+Shift+I"
+      },
+      "description": "Copy default install command"
+    }
+  },
   "content_scripts": [
     {
-      "matches": ["https://github.com/*/*", "https://github.com/*/*/*"],
+      "matches": [
+        "https://github.com/*/*",
+        "https://github.com/*/*/*",
+        "https://gitlab.com/*/*",
+        "https://gitlab.com/*/*/*",
+        "https://bitbucket.org/*/*",
+        "https://bitbucket.org/*/*/*"
+      ],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"

@@ -18,6 +18,7 @@
         <option value="claude">Claude Code</option>
         <option value="cursor">Cursor</option>
         <option value="terminal">Terminal + Claude</option>
+        <option value="codex">Codex CLI</option>
       </select>
     </div>
 
@@ -33,7 +34,52 @@
     <div class="divider"></div>
 
     <div class="section">
-      <p class="footer-text">Navigate to any GitHub repo to see the Install button.</p>
+      <label class="label" for="custom-command">Custom Command Template</label>
+      <textarea id="custom-command" class="textarea" rows="2" placeholder="my-tool install {url} --setup&#10;Placeholders: {url}, {owner}, {repo}, {stack}"></textarea>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- NFT Settings -->
+    <div class="section">
+      <label class="label" for="emoji-pack">Emoji Pack</label>
+      <select id="emoji-pack" class="select">
+        <option value="animals">🦊 Animals</option>
+        <option value="space">🪐 Space</option>
+        <option value="food">🍕 Food</option>
+        <option value="objects">🎸 Objects</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <label class="label" for="share-template">Share Format</label>
+      <textarea id="share-template" class="textarea" rows="2" placeholder="{emoji} {url}&#10;Placeholders: {emoji}, {url}, {fullurl}, {repo}"></textarea>
+      <p class="hint" style="margin-left:0">Default: {emoji} {url}</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- NFT Stats -->
+    <div class="section">
+      <div class="stats-header">
+        <span class="label" style="margin-bottom:0">Roll Stats</span>
+        <span id="stats-total" class="stats-total">0 rolls</span>
+      </div>
+      <div id="stats-tiers" class="stats-tiers"></div>
+    </div>
+
+    <!-- Share History -->
+    <div class="section">
+      <label class="label">Recent Shares</label>
+      <div id="share-history" class="share-history">
+        <span class="hint" style="margin-left:0">No shares yet</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+      <p class="footer-text">Works on GitHub, GitLab, and Bitbucket.</p>
     </div>
   </div>
   <script src="popup.js"></script>

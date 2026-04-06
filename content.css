@@ -47,7 +47,7 @@
   top: calc(100% + 4px);
   right: 0;
   z-index: 100;
-  min-width: 220px;
+  min-width: 260px;
   padding: 4px 0;
   background: #fff;
   border: 1px solid #d0d7de;
@@ -67,6 +67,47 @@
   }
 }
 
+/* Stack header */
+.ai-install-stack-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px 4px;
+}
+
+.ai-install-stack-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6d28d9;
+  background: #f3f0ff;
+  border-radius: 10px;
+  line-height: 16px;
+}
+
+/* Trust info bar */
+.ai-install-trust-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 12px 4px;
+  font-size: 11px;
+  color: #656d76;
+  line-height: 16px;
+}
+
+.ai-install-trust-item {
+  white-space: nowrap;
+}
+
+.ai-install-trust-sep {
+  margin: 0 4px;
+  color: #d0d7de;
+}
+
+/* Command items */
 .ai-install-dropdown-item {
   display: flex;
   align-items: center;
@@ -124,6 +165,83 @@
   font-size: 13px;
 }
 
+.ai-install-share-item {
+  color: #656d76;
+  font-size: 13px;
+}
+
+.ai-install-pack-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: #f3f0ff;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+/* SMILE-enabled badge */
+.ai-install-smile-enabled {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+  letter-spacing: 0.3px;
+}
+
+/* NFT lootbox spin */
+.ai-install-spin-emoji {
+  animation: ai-install-spin 0.08s linear;
+}
+
+@keyframes ai-install-spin {
+  0% { transform: translateY(-8px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* NFT emoji reveal */
+.ai-install-nft-emoji-inline {
+  font-size: 22px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  animation: ai-install-nftPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes ai-install-nftPop {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  50% { transform: scale(1.5) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* Tier glow effects */
+.ai-install-glow-rare {
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.6));
+}
+
+.ai-install-glow-epic {
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.7));
+  animation: ai-install-nftPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+             ai-install-glow-pulse 1.5s ease-in-out infinite;
+}
+
+.ai-install-glow-legendary {
+  filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.8));
+  animation: ai-install-nftPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+             ai-install-legendary-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes ai-install-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.5)); }
+  50% { filter: drop-shadow(0 0 14px rgba(168, 85, 247, 0.9)); }
+}
+
+@keyframes ai-install-legendary-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.6)); transform: scale(1); }
+  50% { filter: drop-shadow(0 0 18px rgba(234, 179, 8, 1)); transform: scale(1.1); }
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .ai-install-dropdown {
@@ -152,6 +270,23 @@
   .ai-install-badge-item {
     color: #8b949e;
   }
+
+  .ai-install-stack-badge {
+    background: #1e1535;
+    color: #a78bfa;
+  }
+
+  .ai-install-trust-bar {
+    color: #8b949e;
+  }
+
+  .ai-install-trust-sep {
+    color: #30363d;
+  }
+
+  .ai-install-smile-enabled {
+    color: #3fb950;
+  }
 }
 
 /* GitHub dark theme class-based */
@@ -169,4 +304,26 @@
 [data-color-mode="dark"] .ai-install-dropdown-item:hover,
 [data-dark-theme] .ai-install-dropdown-item:hover {
   background: #21262d;
+}
+
+[data-color-mode="dark"] .ai-install-stack-badge,
+[data-dark-theme] .ai-install-stack-badge {
+  background: #1e1535;
+  color: #a78bfa;
+}
+
+[data-color-mode="dark"] .ai-install-trust-bar,
+[data-dark-theme] .ai-install-trust-bar {
+  color: #8b949e;
+}
+
+[data-color-mode="dark"] .ai-install-trust-sep,
+[data-dark-theme] .ai-install-trust-sep {
+  color: #30363d;
+}
+
+[data-color-mode="dark"] .ai-install-pack-tag,
+[data-dark-theme] .ai-install-pack-tag {
+  background: #1e1535;
+  color: #a78bfa;
 }
