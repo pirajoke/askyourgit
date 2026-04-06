@@ -33,6 +33,27 @@
 
     <div class="divider"></div>
 
+    <!-- Terminal Bridge -->
+    <div class="section">
+      <div class="bridge-status-row">
+        <span class="label" style="margin-bottom:0">Terminal Bridge</span>
+        <span id="bridge-status" class="bridge-badge bridge-checking">Checking...</span>
+      </div>
+      <p class="hint" id="bridge-hint">Enables direct command execution in your terminal</p>
+    </div>
+
+    <div class="section">
+      <label class="label" for="terminal-app">Terminal App</label>
+      <select id="terminal-app" class="select">
+        <option value="auto">Auto-detect</option>
+        <option value="Terminal">Terminal.app</option>
+        <option value="iTerm2">iTerm2</option>
+        <option value="Warp">Warp</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
     <div class="section">
       <label class="label" for="custom-command">Custom Command Template</label>
       <textarea id="custom-command" class="textarea" rows="2" placeholder="my-tool install {url} --setup&#10;Placeholders: {url}, {owner}, {repo}, {stack}"></textarea>

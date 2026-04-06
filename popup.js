@@ -3,6 +3,9 @@ const oneClickToggle = document.getElementById('one-click');
 const customCommandInput = document.getElementById('custom-command');
 const emojiPackSelect = document.getElementById('emoji-pack');
 const shareTemplateInput = document.getElementById('share-template');
+const terminalAppSelect = document.getElementById('terminal-app');
+const bridgeStatus = document.getElementById('bridge-status');
+const bridgeHint = document.getElementById('bridge-hint');
 
 // Load saved settings
 chrome.storage.sync.get({
@@ -11,6 +14,7 @@ chrome.storage.sync.get({
   customCommand: '',
   emojiPack: 'animals',
   shareTemplate: '',
+  terminalApp: 'auto',
   nftStats: { total: 0, tiers: {}, history: [] },
 }, (data) => {
   clientSelect.value = data.defaultClient;
@@ -18,9 +22,23 @@ chrome.storage.sync.get({
   customCommandInput.value = data.customCommand;
   emojiPackSelect.value = data.emojiPack;
   shareTemplateInput.value = data.shareTemplate;
+  terminalAppSelect.value = data.terminalApp;
   updateOneClickState();
   renderStats(data.nftStats);
   renderHistory(data.nftStats.history);
+});
+
+// Check bridge status
+chrome.runtime.sendMessage({ action: 'check-bridge' }, (response) => {
+  if (response && response.connected) {
+    bridgeStatus.textContent = 'Connected';
+    bridgeStatus.className = 'bridge-badge bridge-connected';
+    bridgeHint.textContent = 'Commands will be sent directly to your terminal';
+  } else {
+    bridgeStatus.textContent = 'Not installed';
+    bridgeStatus.className = 'bridge-badge bridge-disconnected';
+    bridgeHint.innerHTML = 'Run <code>bash native-host/install.sh</code> to enable';
+  }
 });
 
 clientSelect.addEventListener('change', () => {
@@ -42,6 +60,10 @@ emojiPackSelect.addEventListener('change', () => {
 
 shareTemplateInput.addEventListener('input', () => {
   chrome.storage.sync.set({ shareTemplate: shareTemplateInput.value.trim() });
+});
+
+terminalAppSelect.addEventListener('change', () => {
+  chrome.storage.sync.set({ terminalApp: terminalAppSelect.value });
 });
 
 function updateOneClickState() {

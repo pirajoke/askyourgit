@@ -1,0 +1,7 @@
+{
+  "name": "com.smile.ai_install",
+  "description": "SMILE AI Install — Terminal Bridge",
+  "path": "/usr/local/bin/smile-bridge",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://EXTENSION_ID_PLACEHOLDER/"]
+}

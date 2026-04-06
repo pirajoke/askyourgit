@@ -313,14 +313,41 @@
     }
   }
 
-  function showCopiedFeedback(btn) {
+  function showFeedback(btn, text) {
     const original = btn.innerHTML;
-    btn.innerHTML = '<span class="ai-install-icon">✓</span> Copied!';
+    btn.innerHTML = `<span class="ai-install-icon">✓</span> ${text || 'Copied!'}`;
     btn.classList.add('ai-install-copied');
     setTimeout(() => {
       btn.innerHTML = original;
       btn.classList.remove('ai-install-copied');
     }, 1500);
+  }
+
+  function showCopiedFeedback(btn) {
+    showFeedback(btn, 'Copied!');
+  }
+
+  // --- Execute via Background ---
+
+  async function executeOrCopy(toolId, command, url, btn) {
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: 'execute',
+        toolId,
+        command,
+        url,
+      });
+      if (result && result.success) {
+        const label = result.app ? `Sent to ${result.app}` : 'Opened';
+        showFeedback(btn, `${label} ✓`);
+        return;
+      }
+    } catch {
+      // sendMessage failed — background unreachable
+    }
+    // Fallback: copy to clipboard
+    await copyToClipboard(command);
+    showCopiedFeedback(btn);
   }
 
   // --- Dropdown ---
@@ -353,7 +380,7 @@
       if (settings.oneClick && settings.defaultClient) {
         const cmd = commands.find((c) => c.id === settings.defaultClient);
         if (cmd) {
-          copyToClipboard(cmd.command).then(() => showCopiedFeedback(anchorBtn));
+          executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn);
           return;
         }
       }
@@ -405,9 +432,8 @@
         item.innerHTML = `<span class="ai-install-item-icon">${cmd.icon}</span><span class="ai-install-item-label">${cmd.label}</span>`;
         item.addEventListener('click', async (e) => {
           e.stopPropagation();
-          await copyToClipboard(cmd.command);
           closeDropdown();
-          showCopiedFeedback(anchorBtn);
+          await executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn);
         });
         dropdown.appendChild(item);
       });
@@ -601,9 +627,11 @@
       chrome.storage.sync.get({ defaultClient: 'claude', customCommand: '' }, (settings) => {
         const commands = getCommands(info, stackInfo, settings.customCommand);
         const cmd = commands.find(c => c.id === settings.defaultClient) || commands[0];
-        copyToClipboard(cmd.command).then(() => {
-          if (btn) showCopiedFeedback(btn);
-        });
+        if (btn) {
+          executeOrCopy(cmd.id, cmd.command, info.url, btn);
+        } else {
+          copyToClipboard(cmd.command);
+        }
       });
     }
   });
