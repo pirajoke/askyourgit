@@ -504,6 +504,83 @@
     });
   }
 
+  // --- Add Custom Tool Modal ---
+
+  function showAddToolModal(onSave) {
+    const overlay = document.createElement('div');
+    overlay.className = 'ai-install-confirm-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'ai-install-confirm-modal ai-install-tool-modal';
+
+    const title = document.createElement('div');
+    title.className = 'ai-install-confirm-title';
+    title.textContent = 'Add Custom Tool';
+
+    const form = document.createElement('div');
+    form.className = 'ai-install-tool-form';
+
+    // Name + Icon row
+    const nameRow = document.createElement('div');
+    nameRow.className = 'ai-install-tool-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'ai-install-tool-input';
+    nameInput.placeholder = 'Name (e.g. Windsurf)';
+    nameInput.maxLength = 20;
+
+    const iconInput = document.createElement('input');
+    iconInput.className = 'ai-install-tool-input ai-install-tool-icon-input';
+    iconInput.placeholder = '🌊';
+    iconInput.maxLength = 2;
+
+    nameRow.append(nameInput, iconInput);
+
+    // Command
+    const cmdInput = document.createElement('textarea');
+    cmdInput.className = 'ai-install-tool-textarea';
+    cmdInput.placeholder = 'Command template\ne.g. windsurf clone {url}\nPlaceholders: {url}, {owner}, {repo}, {stack}';
+    cmdInput.rows = 3;
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'ai-install-confirm-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'ai-install-confirm-btn ai-install-confirm-cancel';
+    cancelBtn.textContent = 'Cancel';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'ai-install-confirm-btn ai-install-confirm-ok';
+    saveBtn.textContent = 'Save';
+
+    actions.append(cancelBtn, saveBtn);
+    form.append(nameRow, cmdInput);
+    modal.append(title, form, actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    nameInput.focus();
+
+    const cleanup = () => {
+      overlay.classList.add('ai-install-confirm-closing');
+      setTimeout(() => overlay.remove(), 150);
+    };
+
+    cancelBtn.addEventListener('click', cleanup);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+
+    saveBtn.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      const icon = iconInput.value.trim() || '🔧';
+      const command = cmdInput.value.trim();
+      if (!name || !command) return;
+      onSave({ id: 'tool_' + Date.now(), name, icon, command, enabled: true });
+      cleanup();
+      showToast(`${icon} ${name} added! Reopen dropdown to use it.`);
+    });
+  }
+
   // --- README Extraction ---
 
   function getReadmeText() {
@@ -973,7 +1050,7 @@
         }
         const cmdIcon = document.createElement('span');
         cmdIcon.className = 'ai-install-item-icon';
-        if (cmd.icon.startsWith('<svg')) {
+        if (typeof cmd.icon === 'string' && cmd.icon.startsWith('<svg')) {
           cmdIcon.innerHTML = cmd.icon;
         } else {
           cmdIcon.textContent = cmd.icon;
@@ -991,6 +1068,31 @@
         });
         dropdown.appendChild(item);
       });
+
+      // Add Custom Tool button
+      const addToolItem = document.createElement('button');
+      addToolItem.className = 'ai-install-dropdown-item ai-install-add-tool-item';
+      const addToolIcon = document.createElement('span');
+      addToolIcon.className = 'ai-install-item-icon';
+      addToolIcon.textContent = '+';
+      const addToolLabel = document.createElement('span');
+      addToolLabel.className = 'ai-install-item-label';
+      addToolLabel.textContent = 'Add custom tool';
+      addToolItem.append(addToolIcon, addToolLabel);
+      addToolItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeDropdown();
+        showAddToolModal((newTool) => {
+          // Refresh dropdown with new tool
+          chrome.storage.sync.get({ customTools: [] }, (data) => {
+            const tools = data.customTools;
+            if (tools.length >= 10) return;
+            tools.push(newTool);
+            chrome.storage.sync.set({ customTools: tools });
+          });
+        });
+      });
+      dropdown.appendChild(addToolItem);
 
       // Divider
       const divider = document.createElement('div');
