@@ -1,7 +1,6 @@
 // --- AI Proxy ---
 
-// TODO: Deploy proxy/worker.js to Cloudflare and set this URL
-const PROXY_URL = 'https://smile-ai-proxy.thegreatgatsby456.workers.dev';
+const PROXY_URL = 'https://vercel-nu-wheat.vercel.app/api/chat';
 
 const AI_MODELS = {
   haiku: { id: 'claude-haiku-4-5-20251001', label: 'Haiku (fast)', requiresKey: false },

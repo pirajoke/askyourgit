@@ -4,7 +4,7 @@
   "version": "2.3.0",
   "description": "One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
-  "host_permissions": ["https://api.anthropic.com/*", "https://smile-ai-proxy.thegreatgatsby456.workers.dev/*"],
+  "host_permissions": ["https://api.anthropic.com/*", "https://vercel-nu-wheat.vercel.app/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
