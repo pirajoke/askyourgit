@@ -455,6 +455,221 @@
     });
   }
 
+  // --- README Extraction ---
+
+  function getReadmeText() {
+    const readme = document.querySelector('#readme, [data-testid="readme"], .readme-content');
+    if (!readme) return null;
+    const clone = readme.cloneNode(true);
+    // Remove nav/badges/images for cleaner text
+    clone.querySelectorAll('nav, img, svg, .anchor, .octicon').forEach(el => el.remove());
+    const text = clone.textContent.replace(/\s+/g, ' ').trim();
+    return text ? text.slice(0, 4000) : null;
+  }
+
+  // --- Quick Summary ---
+
+  function getBasicSummary(repoInfo, stackInfo) {
+    const aboutEl = document.querySelector('.f4.my-3, .BorderGrid-cell p, [itemprop="about"]');
+    const about = aboutEl ? aboutEl.textContent.trim() : '';
+
+    const readme = document.querySelector('#readme, [data-testid="readme"], .readme-content');
+    let firstPara = '';
+    if (readme) {
+      const p = readme.querySelector('p');
+      if (p) firstPara = p.textContent.trim().slice(0, 200);
+    }
+
+    const stacks = stackInfo.stacks.length > 0 ? `Stack: ${stackInfo.stacks.join(', ')}` : '';
+
+    let summary = '';
+    if (about) summary += about + '\n\n';
+    if (firstPara && firstPara !== about) summary += firstPara + '\n\n';
+    if (stacks) summary += stacks;
+
+    return summary.trim() || 'No description available for this repository.';
+  }
+
+  function showRepoSummary(dropdown, repoInfo, stackInfo) {
+    // Remove existing panel if any
+    const existing = dropdown.querySelector('.ai-install-summary-panel');
+    if (existing) { existing.remove(); return; }
+
+    const panel = document.createElement('div');
+    panel.className = 'ai-install-summary-panel';
+
+    const cacheKey = `summary_${repoInfo.owner}_${repoInfo.repo}`;
+
+    // Check cache first
+    chrome.storage.local.get([cacheKey], (data) => {
+      const cached = data[cacheKey];
+      if (cached && (Date.now() - cached.ts < 24 * 60 * 60 * 1000)) {
+        panel.textContent = cached.text;
+        return;
+      }
+
+      // Show loading
+      panel.innerHTML = '';
+      const spinner = document.createElement('div');
+      spinner.className = 'ai-install-summary-loading';
+      spinner.textContent = 'Generating summary...';
+      panel.appendChild(spinner);
+
+      const readmeText = getReadmeText();
+      if (!readmeText) {
+        panel.textContent = 'No README found on this page.';
+        return;
+      }
+
+      chrome.runtime.sendMessage({
+        action: 'summarize',
+        readmeText,
+        repoName: `${repoInfo.owner}/${repoInfo.repo}`,
+      }, (response) => {
+        if (response && response.summary) {
+          panel.textContent = response.summary;
+          chrome.storage.local.set({ [cacheKey]: { text: response.summary, ts: Date.now() } });
+        } else {
+          // Fallback to basic DOM info
+          const basic = getBasicSummary(repoInfo, stackInfo);
+          panel.textContent = basic;
+          if (response?.error) {
+            const hint = document.createElement('div');
+            hint.className = 'ai-install-summary-hint';
+            hint.textContent = response.error;
+            panel.appendChild(hint);
+          }
+        }
+      });
+    });
+
+    dropdown.appendChild(panel);
+  }
+
+  // --- Repo Chat ---
+
+  function showRepoChat(dropdown, repoInfo, stackInfo) {
+    const existing = dropdown.querySelector('.ai-install-chat-panel');
+    if (existing) { existing.remove(); return; }
+
+    // Remove summary panel if open
+    const summaryPanel = dropdown.querySelector('.ai-install-summary-panel');
+    if (summaryPanel) summaryPanel.remove();
+
+    const panel = document.createElement('div');
+    panel.className = 'ai-install-chat-panel';
+
+    // Model selector bar
+    const modelBar = document.createElement('div');
+    modelBar.className = 'ai-install-chat-model-bar';
+
+    let selectedModel = 'haiku';
+
+    chrome.runtime.sendMessage({ action: 'get-models' }, (resp) => {
+      if (!resp?.models) return;
+      resp.models.forEach((m) => {
+        const btn = document.createElement('button');
+        btn.className = 'ai-install-chat-model-btn';
+        if (m.id === selectedModel) btn.classList.add('ai-install-chat-model-active');
+        btn.textContent = m.label;
+        if (!m.available) {
+          btn.classList.add('ai-install-chat-model-locked');
+          btn.title = 'Requires API key in settings';
+        }
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!m.available) {
+            addMessage('assistant', `${m.label} requires your Claude API key. Add it in extension settings for deeper analysis.`);
+            return;
+          }
+          selectedModel = m.id;
+          modelBar.querySelectorAll('.ai-install-chat-model-btn').forEach(b => b.classList.remove('ai-install-chat-model-active'));
+          btn.classList.add('ai-install-chat-model-active');
+          addMessage('assistant', `Switched to ${m.label}`);
+        });
+        modelBar.appendChild(btn);
+      });
+    });
+
+    const messages = document.createElement('div');
+    messages.className = 'ai-install-chat-messages';
+
+    const inputRow = document.createElement('div');
+    inputRow.className = 'ai-install-chat-input-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'ai-install-chat-input';
+    input.placeholder = 'Ask about this repo...';
+
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'ai-install-chat-send';
+    sendBtn.textContent = '→';
+
+    inputRow.append(input, sendBtn);
+    panel.append(modelBar, messages, inputRow);
+    dropdown.appendChild(panel);
+
+    const readmeText = getReadmeText() || '';
+    const conversationHistory = [];
+
+    function addMessage(role, text) {
+      const msg = document.createElement('div');
+      msg.className = `ai-install-chat-msg ai-install-chat-${role}`;
+      msg.textContent = text;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function addTyping() {
+      const msg = document.createElement('div');
+      msg.className = 'ai-install-chat-msg ai-install-chat-assistant ai-install-chat-typing';
+      msg.textContent = '...';
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+      return msg;
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      addMessage('user', text);
+      conversationHistory.push({ role: 'user', content: text });
+
+      const typingEl = addTyping();
+
+      chrome.runtime.sendMessage({
+        action: 'chat',
+        messages: conversationHistory,
+        readmeText,
+        repoName: `${repoInfo.owner}/${repoInfo.repo}`,
+        stacks: stackInfo.stacks,
+        model: selectedModel,
+      }, (response) => {
+        typingEl.remove();
+        if (response && response.reply) {
+          addMessage('assistant', response.reply);
+          conversationHistory.push({ role: 'assistant', content: response.reply });
+        } else {
+          addMessage('assistant', response?.error || 'Failed to get response.');
+        }
+      });
+    }
+
+    sendBtn.addEventListener('click', (e) => { e.stopPropagation(); sendMessage(); });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') sendMessage();
+    });
+    input.addEventListener('click', (e) => e.stopPropagation());
+
+    addMessage('assistant', `Ask me anything about ${repoInfo.owner}/${repoInfo.repo}!`);
+
+    setTimeout(() => input.focus(), 100);
+  }
+
   // --- Dropdown ---
 
   function closeDropdown() {
@@ -538,6 +753,38 @@
         enabled.textContent = '⚡ SMILE-enabled repo';
         dropdown.appendChild(enabled);
       }
+
+      // Quick Summary button
+      const summaryItem = document.createElement('button');
+      summaryItem.className = 'ai-install-dropdown-item ai-install-summary-item';
+      const summaryIcon = document.createElement('span');
+      summaryIcon.className = 'ai-install-item-icon';
+      summaryIcon.textContent = '\u2139\uFE0F';
+      const summaryLabel = document.createElement('span');
+      summaryLabel.className = 'ai-install-item-label';
+      summaryLabel.textContent = 'Quick Summary';
+      summaryItem.append(summaryIcon, summaryLabel);
+      summaryItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showRepoSummary(dropdown, repoInfo, stackInfo);
+      });
+      dropdown.appendChild(summaryItem);
+
+      // Ask AI chat button
+      const chatItem = document.createElement('button');
+      chatItem.className = 'ai-install-dropdown-item ai-install-summary-item';
+      const chatIcon = document.createElement('span');
+      chatIcon.className = 'ai-install-item-icon';
+      chatIcon.textContent = '\uD83D\uDCAC';
+      const chatLabel = document.createElement('span');
+      chatLabel.className = 'ai-install-item-label';
+      chatLabel.textContent = 'Ask AI';
+      chatItem.append(chatIcon, chatLabel);
+      chatItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showRepoChat(dropdown, repoInfo, stackInfo);
+      });
+      dropdown.appendChild(chatItem);
 
       if ((stackInfo.stacks.length > 0 || stackInfo.hasDocker) || trustInfo || hasSmileBadge) {
         const div = document.createElement('div');

@@ -1,3 +1,85 @@
+// --- AI Proxy ---
+
+// TODO: Deploy proxy/worker.js to Cloudflare and set this URL
+const PROXY_URL = 'https://smile-ai-proxy.thegreatgatsby456.workers.dev';
+
+const AI_MODELS = {
+  haiku: { id: 'claude-haiku-4-5-20251001', label: 'Haiku (fast)', requiresKey: false },
+  sonnet: { id: 'claude-sonnet-4-5-20241022', label: 'Sonnet (deep)', requiresKey: true },
+  opus: { id: 'claude-opus-4-0-20250514', label: 'Opus (max)', requiresKey: true },
+};
+
+async function callAI({ messages, system, max_tokens = 512, model = 'haiku' }) {
+  const { claudeApiKey } = await chrome.storage.sync.get({ claudeApiKey: '' });
+  const modelConfig = AI_MODELS[model] || AI_MODELS.haiku;
+
+  // Premium models require user's own key
+  if (modelConfig.requiresKey) {
+    if (!claudeApiKey) {
+      return { error: `${modelConfig.label} requires your own Claude API key. Add it in extension settings.` };
+    }
+    return callDirectAPI({ messages, system, max_tokens, model: modelConfig.id, apiKey: claudeApiKey });
+  }
+
+  // Free tier (Haiku) → proxy first, then user key fallback
+  try {
+    const proxyBody = { messages, max_tokens };
+    if (system) proxyBody.system = system;
+
+    const resp = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(proxyBody),
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.content) return { text: data.content, model: 'haiku' };
+      if (data.error) throw new Error(data.error);
+    }
+
+    if (resp.status === 429) {
+      if (!claudeApiKey) {
+        return { error: 'Rate limit reached. Add your Claude API key in settings for unlimited use.' };
+      }
+    } else {
+      throw new Error(`Proxy error: ${resp.status}`);
+    }
+  } catch {
+    if (!claudeApiKey) {
+      return { error: 'AI service unavailable. Add your Claude API key in settings as backup.' };
+    }
+  }
+
+  return callDirectAPI({ messages, system, max_tokens, model: modelConfig.id, apiKey: claudeApiKey });
+}
+
+async function callDirectAPI({ messages, system, max_tokens, model, apiKey }) {
+  try {
+    const apiBody = { model, max_tokens, messages };
+    if (system) apiBody.system = system;
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify(apiBody),
+    });
+
+    const data = await resp.json();
+    if (data.content && data.content[0]) {
+      return { text: data.content[0].text, model };
+    }
+    return { error: data.error?.message || 'API error' };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
 // --- Command Execution Router ---
 
 const NM_HOST = 'com.smile.ai_install';
@@ -64,6 +146,57 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === 'execute') {
     executeCommand(msg).then(sendResponse);
     return true; // async response
+  }
+
+  if (msg.action === 'summarize') {
+    (async () => {
+      const result = await callAI({
+        messages: [{
+          role: 'user',
+          content: `Summarize this GitHub repo "${msg.repoName}" based on its README. Give 3-4 concise bullet points covering: what it does, key features, and how to get started. Keep it short and practical.\n\nREADME:\n${msg.readmeText}`,
+        }],
+        max_tokens: 512,
+      });
+      if (result.text) {
+        sendResponse({ summary: result.text });
+      } else {
+        sendResponse({ error: result.error });
+      }
+    })();
+    return true;
+  }
+
+  if (msg.action === 'chat') {
+    (async () => {
+      const systemPrompt = `You are a helpful assistant answering questions about the GitHub repository "${msg.repoName}". Tech stack: ${msg.stacks?.join(', ') || 'unknown'}. Use the README below as context. Be concise and practical. If you don't know something from the README, say so.\n\nREADME:\n${msg.readmeText || 'No README available.'}`;
+
+      const result = await callAI({
+        messages: msg.messages,
+        system: systemPrompt,
+        max_tokens: 1024,
+        model: msg.model || 'haiku',
+      });
+      if (result.text) {
+        sendResponse({ reply: result.text, model: result.model });
+      } else {
+        sendResponse({ error: result.error });
+      }
+    })();
+    return true;
+  }
+
+  if (msg.action === 'get-models') {
+    (async () => {
+      const { claudeApiKey } = await chrome.storage.sync.get({ claudeApiKey: '' });
+      const models = Object.entries(AI_MODELS).map(([key, cfg]) => ({
+        id: key,
+        label: cfg.label,
+        available: !cfg.requiresKey || !!claudeApiKey,
+        requiresKey: cfg.requiresKey,
+      }));
+      sendResponse({ models });
+    })();
+    return true;
   }
 
   if (msg.action === 'check-bridge') {

@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "S.M.I.L.E. — Install with AI",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
+  "host_permissions": ["https://api.anthropic.com/*", "https://smile-ai-proxy.thegreatgatsby456.workers.dev/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },

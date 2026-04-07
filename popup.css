@@ -61,6 +61,23 @@ h1 {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2328;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
 /* Toggle */
 .toggle-row {
   display: flex;

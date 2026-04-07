@@ -6,6 +6,7 @@ const shareTemplateInput = document.getElementById('share-template');
 const terminalAppSelect = document.getElementById('terminal-app');
 const bridgeStatus = document.getElementById('bridge-status');
 const bridgeHint = document.getElementById('bridge-hint');
+const claudeApiKeyInput = document.getElementById('claude-api-key');
 
 // Load saved settings
 chrome.storage.sync.get({
@@ -15,6 +16,7 @@ chrome.storage.sync.get({
   emojiPack: 'animals',
   shareTemplate: '',
   terminalApp: 'auto',
+  claudeApiKey: '',
   nftStats: { total: 0, tiers: {}, history: [] },
 }, (data) => {
   clientSelect.value = data.defaultClient;
@@ -23,6 +25,7 @@ chrome.storage.sync.get({
   emojiPackSelect.value = data.emojiPack;
   shareTemplateInput.value = data.shareTemplate;
   terminalAppSelect.value = data.terminalApp;
+  claudeApiKeyInput.value = data.claudeApiKey;
   updateOneClickState();
   renderStats(data.nftStats);
   renderHistory(data.nftStats.history);
@@ -64,6 +67,10 @@ shareTemplateInput.addEventListener('input', () => {
 
 terminalAppSelect.addEventListener('change', () => {
   chrome.storage.sync.set({ terminalApp: terminalAppSelect.value });
+});
+
+claudeApiKeyInput.addEventListener('input', () => {
+  chrome.storage.sync.set({ claudeApiKey: claudeApiKeyInput.value.trim() });
 });
 
 function updateOneClickState() {
