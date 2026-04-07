@@ -175,9 +175,8 @@
         id: 'codex',
         label: 'Codex',
         icon: TOOL_ICONS.codex,
-        command: `codex "clone ${url} and set it up"`,
-        launchApp: 'open -a Codex',
-        copyUrl: url,
+        command: `Clone ${url} into folder "${repo}" and set it up`,
+        codexMode: true,
       },
     ];
 
@@ -426,21 +425,24 @@
       chrome.runtime.sendMessage({ action: 'track-install' });
       return;
     }
-    // Launch desktop app + copy URL (e.g. Codex)
-    if (opts.launchApp) {
-      await copyToClipboard(opts.copyUrl || url);
-      // Launch app directly (not in terminal)
+    // Codex mode — open app + paste instruction
+    if (opts.codexMode) {
       try {
         await chrome.runtime.sendMessage({
           action: 'execute',
           toolId,
-          command: opts.launchApp,
+          command,
           url,
-          mode: 'exec',
+          mode: 'codex',
         });
-      } catch { /* native bridge not available */ }
-      showFeedback(btn, 'Opened ✓');
-      showToast('Codex opened. Repo URL copied — paste it in Codex.');
+        showFeedback(btn, 'Opened ✓');
+        showToast('Codex opened with instruction — just press Enter!');
+      } catch {
+        // Fallback: copy command to clipboard
+        await copyToClipboard(command);
+        showFeedback(btn, 'Copied ✓');
+        showToast('Open Codex and paste the instruction (Cmd+V).');
+      }
       chrome.runtime.sendMessage({ action: 'track-install' });
       return;
     }
@@ -894,7 +896,7 @@
         if (cmd) {
           const ok = await showInstallConfirm(`${repoInfo.owner}/${repoInfo.repo}`, cmd.label, cmd.icon);
           if (!ok) return;
-          executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { launchApp: cmd.launchApp, copyUrl: cmd.copyUrl });
+          executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { codexMode: cmd.codexMode });
           return;
         }
       }
@@ -1007,7 +1009,7 @@
           closeDropdown();
           const ok = await showInstallConfirm(`${repoInfo.owner}/${repoInfo.repo}`, cmd.label, cmd.icon);
           if (!ok) return;
-          await executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { launchApp: cmd.launchApp, copyUrl: cmd.copyUrl });
+          await executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { codexMode: cmd.codexMode });
         });
         dropdown.appendChild(item);
       });
@@ -1231,7 +1233,7 @@
         const commands = getCommands(info, stackInfo, settings.customCommand);
         const cmd = commands.find(c => c.id === settings.defaultClient) || commands[0];
         if (btn) {
-          executeOrCopy(cmd.id, cmd.command, info.url, btn, cmd.openUrl, { launchApp: cmd.launchApp, copyUrl: cmd.copyUrl });
+          executeOrCopy(cmd.id, cmd.command, info.url, btn, cmd.openUrl, { codexMode: cmd.codexMode });
         } else {
           copyToClipboard(cmd.command);
         }
