@@ -1,3 +1,31 @@
+// --- Header Actions ---
+
+const aboutModal = document.getElementById('about-modal');
+const settingsSection = document.getElementById('settings-section');
+
+// Settings button — toggle settings visibility
+document.getElementById('btn-settings').addEventListener('click', () => {
+  const isHidden = settingsSection.style.display === 'none';
+  settingsSection.style.display = isHidden ? '' : 'none';
+});
+
+// About button
+document.getElementById('btn-about').addEventListener('click', () => {
+  const manifest = chrome.runtime.getManifest();
+  document.getElementById('about-version').textContent = `v${manifest.version}`;
+  aboutModal.style.display = 'flex';
+});
+
+document.getElementById('about-close').addEventListener('click', () => {
+  aboutModal.style.display = 'none';
+});
+
+aboutModal.addEventListener('click', (e) => {
+  if (e.target === aboutModal) aboutModal.style.display = 'none';
+});
+
+// --- Settings ---
+
 const clientSelect = document.getElementById('default-client');
 const oneClickToggle = document.getElementById('one-click');
 const customCommandInput = document.getElementById('custom-command');

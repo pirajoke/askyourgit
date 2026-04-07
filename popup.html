@@ -8,8 +8,35 @@
   <div class="popup">
     <div class="header">
       <span class="logo">⚡</span>
-      <h1>AI Install</h1>
+      <h1>S.M.I.L.E.</h1>
+      <div class="header-actions">
+        <button id="btn-settings" class="header-btn" title="Settings">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492ZM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0Z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.902 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319Zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 9.89l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094a1.873 1.873 0 0 0 1.115-2.692l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.116l.094-.318Z"/></svg>
+        </button>
+        <button id="btn-about" class="header-btn" title="About SMILE">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm6.5-.25A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>
+        </button>
+      </div>
     </div>
+
+    <!-- About Modal -->
+    <div id="about-modal" class="about-modal" style="display:none">
+      <div class="about-content">
+        <span class="about-logo">⚡</span>
+        <h2>S.M.I.L.E.</h2>
+        <p class="about-subtitle">Smart Manager for Installing Libraries Easily</p>
+        <p class="about-version" id="about-version">v2.3.0</p>
+        <div class="about-links">
+          <a href="https://github.com/pirajoke/smile" target="_blank">GitHub</a>
+          <span class="about-sep">·</span>
+          <a href="https://github.com/pirajoke/smile/issues" target="_blank">Report Bug</a>
+        </div>
+        <button id="about-close" class="about-close-btn">Close</button>
+      </div>
+    </div>
+
+    <!-- Settings (scrollable content below) -->
+    <div id="settings-section">
 
     <div class="section">
       <label class="label" for="default-client">Default AI Client</label>
@@ -137,6 +164,7 @@
     <div class="section">
       <p class="footer-text">Works on GitHub, GitLab, and Bitbucket.</p>
     </div>
+    </div><!-- /settings-section -->
   </div>
   <script src="popup.js"></script>
 </body>

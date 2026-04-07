@@ -30,6 +30,113 @@ body {
 h1 {
   font-size: 18px;
   font-weight: 600;
+  flex: 1;
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.header-btn {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  color: #656d76;
+  cursor: pointer;
+  padding: 5px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.header-btn:hover {
+  background: #f6f8fa;
+  color: #1f2328;
+  border-color: #8b5cf6;
+}
+
+/* About Modal */
+.about-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  width: 240px;
+}
+
+.about-logo {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.about-content h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.about-subtitle {
+  font-size: 11px;
+  color: #656d76;
+  margin-bottom: 8px;
+}
+
+.about-version {
+  font-size: 12px;
+  color: #8b5cf6;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.about-links {
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.about-links a {
+  color: #8b5cf6;
+  text-decoration: none;
+}
+
+.about-links a:hover {
+  text-decoration: underline;
+}
+
+.about-sep {
+  color: #d0d7de;
+  margin: 0 6px;
+}
+
+.about-close-btn {
+  background: #8b5cf6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.about-close-btn:hover {
+  background: #7c3aed;
 }
 
 .section {
