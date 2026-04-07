@@ -120,16 +120,18 @@ async function callDirectAPI({ messages, system, max_tokens, model, apiKey }) {
 const NM_HOST = 'com.smile.ai_install';
 
 async function executeCommand(msg) {
-  const { toolId, command, url } = msg;
+  const { toolId, command, url, mode } = msg;
 
   // All commands → Native Messaging Host (terminal execution)
   if (['cursor', 'vscode', 'terminal', 'claude', 'codex', 'custom'].includes(toolId)) {
     try {
       const prefs = await chrome.storage.sync.get({ terminalApp: 'auto' });
+      const nativeMsg = { command, terminal: prefs.terminalApp };
+      if (mode) nativeMsg.mode = mode;
       const result = await new Promise((resolve, reject) => {
         chrome.runtime.sendNativeMessage(
           NM_HOST,
-          { command, terminal: prefs.terminalApp },
+          nativeMsg,
           (response) => {
             if (chrome.runtime.lastError) {
               reject(new Error(chrome.runtime.lastError.message));

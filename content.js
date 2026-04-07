@@ -429,13 +429,14 @@
     // Launch desktop app + copy URL (e.g. Codex)
     if (opts.launchApp) {
       await copyToClipboard(opts.copyUrl || url);
-      // Try to launch app via native bridge
+      // Launch app directly (not in terminal)
       try {
         await chrome.runtime.sendMessage({
           action: 'execute',
           toolId,
           command: opts.launchApp,
           url,
+          mode: 'exec',
         });
       } catch { /* native bridge not available */ }
       showFeedback(btn, 'Opened ✓');
