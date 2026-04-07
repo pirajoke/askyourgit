@@ -165,9 +165,78 @@ async function checkNativeBridge() {
   }
 }
 
+// --- GitHub API (runs in background where host_permissions apply) ---
+
+async function fetchGitHubRepoContext(owner, repo) {
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  const headers = { Accept: 'application/vnd.github.v3+json' };
+
+  const [repoResp, contentsResp, readmeResp, langsResp] = await Promise.allSettled([
+    fetch(base, { headers }),
+    fetch(`${base}/contents/`, { headers }),
+    fetch(`${base}/readme`, { headers }),
+    fetch(`${base}/languages`, { headers }),
+  ]);
+
+  if (repoResp.status === 'fulfilled' && repoResp.value.status === 403) {
+    return null; // rate limited
+  }
+
+  const parts = [];
+
+  if (repoResp.status === 'fulfilled' && repoResp.value.ok) {
+    const r = await repoResp.value.json();
+    if (r.description) parts.push(`About: ${r.description}`);
+    if (r.topics?.length) parts.push(`Topics: ${r.topics.join(', ')}`);
+    parts.push(`Stars: ${r.stargazers_count}, Forks: ${r.forks_count}`);
+    if (r.license?.spdx_id) parts.push(`License: ${r.license.spdx_id}`);
+    if (r.language) parts.push(`Primary language: ${r.language}`);
+  }
+
+  if (contentsResp.status === 'fulfilled' && contentsResp.value.ok) {
+    const files = await contentsResp.value.json();
+    if (Array.isArray(files)) {
+      const tree = files.map(f => `${f.type === 'dir' ? '/' : ''}${f.name}`).join(', ');
+      parts.push(`Root files: ${tree}`);
+    }
+  }
+
+  if (langsResp.status === 'fulfilled' && langsResp.value.ok) {
+    const langs = await langsResp.value.json();
+    const total = Object.values(langs).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const breakdown = Object.entries(langs)
+        .map(([lang, bytes]) => `${lang} ${Math.round(bytes / total * 100)}%`)
+        .join(', ');
+      parts.push(`Languages: ${breakdown}`);
+    }
+  }
+
+  if (readmeResp.status === 'fulfilled' && readmeResp.value.ok) {
+    const readme = await readmeResp.value.json();
+    if (readme.content) {
+      try {
+        const text = atob(readme.content).slice(0, 4000);
+        parts.push(`README:\n${text}`);
+      } catch { /* base64 decode failed */ }
+    }
+  }
+
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
 // --- Message Handler ---
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === 'fetch-repo-context') {
+    fetchGitHubRepoContext(msg.owner, msg.repo).then((context) => {
+      sendResponse({ context });
+    }).catch(() => {
+      sendResponse({ context: null });
+    });
+    return true;
+  }
+
   if (msg.action === 'execute') {
     executeCommand(msg).then((result) => {
       if (result && result.success) incrementStat('installs');

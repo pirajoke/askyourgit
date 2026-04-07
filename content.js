@@ -38,7 +38,7 @@
     return { owner, repo: cleanRepo, url, platform };
   }
 
-  // --- GitHub API Context ---
+  // --- GitHub API Context (via background script) ---
 
   async function fetchRepoContextAPI(owner, repo) {
     const cacheKey = `ghapi_${owner}_${repo}`;
@@ -47,71 +47,17 @@
       return cached[cacheKey].data;
     }
 
-    const base = `https://api.github.com/repos/${owner}/${repo}`;
     try {
-      const [repoResp, contentsResp, readmeResp, langsResp] = await Promise.allSettled([
-        fetch(base, { headers: { Accept: 'application/vnd.github.v3+json' } }),
-        fetch(`${base}/contents/`, { headers: { Accept: 'application/vnd.github.v3+json' } }),
-        fetch(`${base}/readme`, { headers: { Accept: 'application/vnd.github.v3+json' } }),
-        fetch(`${base}/languages`, { headers: { Accept: 'application/vnd.github.v3+json' } }),
-      ]);
-
-      // Check for rate limit
-      if (repoResp.status === 'fulfilled' && repoResp.value.status === 403) {
-        return null; // rate limited, fallback to DOM
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'fetch-repo-context', owner, repo }, resolve);
+      });
+      if (response?.context) {
+        chrome.storage.local.set({ [cacheKey]: { data: response.context, ts: Date.now() } });
+        return response.context;
       }
-
-      const parts = [];
-
-      // Repo metadata
-      if (repoResp.status === 'fulfilled' && repoResp.value.ok) {
-        const r = await repoResp.value.json();
-        if (r.description) parts.push(`About: ${r.description}`);
-        if (r.topics?.length) parts.push(`Topics: ${r.topics.join(', ')}`);
-        parts.push(`Stars: ${r.stargazers_count}, Forks: ${r.forks_count}`);
-        if (r.license?.spdx_id) parts.push(`License: ${r.license.spdx_id}`);
-        if (r.language) parts.push(`Primary language: ${r.language}`);
-      }
-
-      // File tree
-      if (contentsResp.status === 'fulfilled' && contentsResp.value.ok) {
-        const files = await contentsResp.value.json();
-        if (Array.isArray(files)) {
-          const tree = files.map(f => `${f.type === 'dir' ? '/' : ''}${f.name}`).join(', ');
-          parts.push(`Root files: ${tree}`);
-        }
-      }
-
-      // Languages breakdown
-      if (langsResp.status === 'fulfilled' && langsResp.value.ok) {
-        const langs = await langsResp.value.json();
-        const total = Object.values(langs).reduce((a, b) => a + b, 0);
-        if (total > 0) {
-          const breakdown = Object.entries(langs)
-            .map(([lang, bytes]) => `${lang} ${Math.round(bytes / total * 100)}%`)
-            .join(', ');
-          parts.push(`Languages: ${breakdown}`);
-        }
-      }
-
-      // README
-      if (readmeResp.status === 'fulfilled' && readmeResp.value.ok) {
-        const readme = await readmeResp.value.json();
-        if (readme.content) {
-          try {
-            const text = atob(readme.content).slice(0, 4000);
-            parts.push(`README:\n${text}`);
-          } catch { /* base64 decode failed */ }
-        }
-      }
-
-      if (parts.length === 0) return null;
-
-      const data = parts.join('\n');
-      chrome.storage.local.set({ [cacheKey]: { data, ts: Date.now() } });
-      return data;
+      return null;
     } catch {
-      return null; // network error, fallback to DOM
+      return null;
     }
   }
 
