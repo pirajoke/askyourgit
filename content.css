@@ -705,6 +705,23 @@
   font-family: inherit;
 }
 
+/* Custom tool delete button in dropdown */
+.ai-install-tool-delete {
+  margin-left: auto;
+  font-size: 12px;
+  color: #8b949e;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.ai-install-tool-delete:hover {
+  color: #d1242f;
+  background: rgba(209, 36, 47, 0.1);
+}
+
 /* Tool presets */
 .ai-install-tool-presets-label {
   font-size: 11px;

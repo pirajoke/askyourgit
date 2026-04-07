@@ -1110,6 +1110,27 @@
         cmdLabel.className = 'ai-install-item-label';
         cmdLabel.textContent = cmd.label;
         item.append(cmdIcon, cmdLabel);
+
+        // Delete button for custom tools
+        if (cmd.id.startsWith('tool_')) {
+          const delBtn = document.createElement('span');
+          delBtn.className = 'ai-install-tool-delete';
+          delBtn.textContent = '✕';
+          delBtn.title = 'Remove';
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            chrome.storage.sync.get({ customTools: [], defaultClient: '' }, (data) => {
+              const tools = data.customTools.filter(t => t.id !== cmd.id);
+              const updates = { customTools: tools };
+              if (data.defaultClient === cmd.id) updates.defaultClient = '';
+              chrome.storage.sync.set(updates);
+            });
+            item.remove();
+            showToast(`${cmd.label} removed`);
+          });
+          item.appendChild(delBtn);
+        }
+
         item.addEventListener('click', async (e) => {
           e.stopPropagation();
           closeDropdown();
