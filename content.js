@@ -458,11 +458,15 @@
   // --- README Extraction ---
 
   function getReadmeText() {
-    const readme = document.querySelector('#readme, [data-testid="readme"], .readme-content');
+    const readme = document.querySelector(
+      '#readme article, [data-testid="readme"] article, ' +
+      '#readme .markdown-body, #readme .Box-body, ' +
+      '#readme, [data-testid="readme"], .readme-content, ' +
+      '.markdown-body.entry-content'
+    );
     if (!readme) return null;
     const clone = readme.cloneNode(true);
-    // Remove nav/badges/images for cleaner text
-    clone.querySelectorAll('nav, img, svg, .anchor, .octicon').forEach(el => el.remove());
+    clone.querySelectorAll('nav, img, svg, .anchor, .octicon, .zeroclipboard-container, details').forEach(el => el.remove());
     const text = clone.textContent.replace(/\s+/g, ' ').trim();
     return text ? text.slice(0, 4000) : null;
   }
@@ -665,7 +669,10 @@
     });
     input.addEventListener('click', (e) => e.stopPropagation());
 
-    addMessage('assistant', `Ask me anything about ${repoInfo.owner}/${repoInfo.repo}!`);
+    const hasReadme = !!readmeText;
+    addMessage('assistant', hasReadme
+      ? `Ready! I've read the README for ${repoInfo.owner}/${repoInfo.repo}. Ask me anything.`
+      : `No README found on this page. I can only answer general questions about ${repoInfo.owner}/${repoInfo.repo}.`);
 
     setTimeout(() => input.focus(), 100);
   }

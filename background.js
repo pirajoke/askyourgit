@@ -167,12 +167,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === 'chat') {
     (async () => {
-      const systemPrompt = `You are a helpful assistant answering questions about the GitHub repository "${msg.repoName}". Tech stack: ${msg.stacks?.join(', ') || 'unknown'}. Use the README below as context. Be concise and practical. If you don't know something from the README, say so.\n\nREADME:\n${msg.readmeText || 'No README available.'}`;
+      const systemPrompt = `You answer questions about the GitHub repo "${msg.repoName}" (stack: ${msg.stacks?.join(', ') || 'unknown'}). Rules: answer in 2-4 sentences MAX. No lists, no step-by-step instructions unless explicitly asked. Be direct and specific. Use ONLY the README below as your knowledge — if the answer isn't there, say "not mentioned in README".\n\nREADME:\n${msg.readmeText || 'No README available.'}`;
 
       const result = await callAI({
         messages: msg.messages,
         system: systemPrompt,
-        max_tokens: 1024,
+        max_tokens: 300,
         model: msg.model || 'haiku',
       });
       if (result.text) {
