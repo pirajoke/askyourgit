@@ -396,6 +396,7 @@
     if (openUrl) {
       window.open(openUrl, '_self');
       showFeedback(btn, 'Opening...');
+      chrome.runtime.sendMessage({ action: 'track-install' });
       return;
     }
     // Try to auto-execute via native host
@@ -410,7 +411,7 @@
         if (result && result.success) {
           const label = result.app ? `Sent to ${result.app}` : 'Opened';
           showFeedback(btn, `${label} ✓`);
-          return;
+          return; // already tracked in background.js
         }
       } catch {
         // native host not available — fall through to copy
@@ -419,6 +420,7 @@
     // Fallback → copy to clipboard
     await copyToClipboard(command);
     showCopiedFeedback(btn);
+    chrome.runtime.sendMessage({ action: 'track-install' });
   }
 
   // --- Confirm Modal ---

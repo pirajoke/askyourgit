@@ -3,26 +3,36 @@
 const PROXY_URL = 'https://vercel-nu-wheat.vercel.app/api/chat';
 const SMILE_TOKEN = 'smile-2024-secret';
 
-// --- Analytics ---
+// --- Analytics (serialized to prevent race conditions) ---
 
-async function incrementStat(key) {
-  const data = await chrome.storage.sync.get({ smileStats: { summaries: 0, chats: 0, installs: 0, repos: [] } });
-  const stats = data.smileStats;
-  if (key === 'repo') return; // handled separately
-  stats[key] = (stats[key] || 0) + 1;
-  await chrome.storage.sync.set({ smileStats: stats });
+let statsQueue = Promise.resolve();
+
+function withStats(fn) {
+  statsQueue = statsQueue.then(async () => {
+    const data = await chrome.storage.sync.get({ smileStats: { summaries: 0, chats: 0, installs: 0, repos: [] } });
+    const stats = data.smileStats;
+    const changed = fn(stats);
+    if (changed) await chrome.storage.sync.set({ smileStats: stats });
+  }).catch(() => {});
 }
 
-async function trackRepo(owner, repo) {
-  const data = await chrome.storage.sync.get({ smileStats: { summaries: 0, chats: 0, installs: 0, repos: [] } });
-  const stats = data.smileStats;
+function incrementStat(key) {
+  withStats((stats) => {
+    stats[key] = (stats[key] || 0) + 1;
+    return true;
+  });
+}
+
+function trackRepo(owner, repo) {
   const slug = `${owner}/${repo}`;
-  if (!stats.repos.includes(slug)) {
-    stats.repos.push(slug);
-    // Keep max 100 to stay within sync storage limits
-    if (stats.repos.length > 100) stats.repos = stats.repos.slice(-100);
-    await chrome.storage.sync.set({ smileStats: stats });
-  }
+  withStats((stats) => {
+    if (!stats.repos.includes(slug)) {
+      stats.repos.push(slug);
+      if (stats.repos.length > 100) stats.repos = stats.repos.slice(-100);
+      return true;
+    }
+    return false;
+  });
 }
 
 const AI_MODELS = {
@@ -235,6 +245,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ context: null });
     });
     return true;
+  }
+
+  if (msg.action === 'track-install') {
+    incrementStat('installs');
+    return;
   }
 
   if (msg.action === 'execute') {

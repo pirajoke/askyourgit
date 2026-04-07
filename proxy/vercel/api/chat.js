@@ -1,8 +1,8 @@
-let kv = null;
-try {
-  const mod = await import('@vercel/kv');
-  kv = mod.kv;
-} catch { /* KV not configured — use in-memory fallback */ }
+import { kv as _kv } from '@vercel/kv';
+
+// KV is available only when KV_REST_API_URL + KV_REST_API_TOKEN env vars are set
+const kvReady = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const kv = kvReady ? _kv : null;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const SMILE_TOKEN = process.env.SMILE_TOKEN || 'smile-2024-secret';
