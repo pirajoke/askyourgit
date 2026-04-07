@@ -136,7 +136,7 @@
 
   // --- Commands ---
 
-  function getCommands(repoInfo, stackInfo, customCommand) {
+  function getCommands(repoInfo, stackInfo, customTools) {
     const { url, repo, owner } = repoInfo;
     const { stacks, hasDocker } = stackInfo;
 
@@ -179,19 +179,19 @@
       },
     ];
 
-    if (customCommand) {
-      const rendered = customCommand
+    (customTools || []).filter(t => t.enabled).forEach(tool => {
+      const rendered = tool.command
         .replace(/\{url\}/g, url)
         .replace(/\{owner\}/g, owner)
         .replace(/\{repo\}/g, repo)
         .replace(/\{stack\}/g, stacks.join(', ') || 'unknown');
       commands.push({
-        id: 'custom',
-        label: 'Custom',
-        icon: '⚙️',
+        id: tool.id,
+        label: tool.name,
+        icon: tool.icon || '🔧',
         command: rendered,
       });
-    }
+    });
 
     return commands;
   }
@@ -862,11 +862,11 @@
     chrome.storage.sync.get({
       defaultClient: '',
       oneClick: false,
-      customCommand: '',
+      customTools: [],
       emojiPack: 'animals',
       shareTemplate: '',
     }, async (settings) => {
-      const commands = getCommands(repoInfo, stackInfo, settings.customCommand);
+      const commands = getCommands(repoInfo, stackInfo, settings.customTools);
 
       // One-click mode
       if (settings.oneClick && settings.defaultClient) {
@@ -1207,8 +1207,8 @@
       if (!info) return;
       const btn = document.getElementById(BUTTON_ID);
       const stackInfo = detectStack();
-      chrome.storage.sync.get({ defaultClient: 'claude', customCommand: '' }, (settings) => {
-        const commands = getCommands(info, stackInfo, settings.customCommand);
+      chrome.storage.sync.get({ defaultClient: 'claude', customTools: [] }, (settings) => {
+        const commands = getCommands(info, stackInfo, settings.customTools);
         const cmd = commands.find(c => c.id === settings.defaultClient) || commands[0];
         if (btn) {
           executeOrCopy(cmd.id, cmd.command, info.url, btn, cmd.openUrl, { codexMode: cmd.codexMode });

@@ -123,7 +123,7 @@ async function executeCommand(msg) {
   const { toolId, command, url, mode } = msg;
 
   // All commands → Native Messaging Host (terminal execution)
-  if (['cursor', 'vscode', 'terminal', 'claude', 'codex', 'custom'].includes(toolId)) {
+  if (['cursor', 'vscode', 'terminal', 'claude', 'codex'].includes(toolId) || toolId.startsWith('tool_')) {
     try {
       const prefs = await chrome.storage.sync.get({ terminalApp: 'auto' });
       const nativeMsg = { command, terminal: prefs.terminalApp };

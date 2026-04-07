@@ -28,7 +28,6 @@ aboutModal.addEventListener('click', (e) => {
 
 const clientSelect = document.getElementById('default-client');
 const oneClickToggle = document.getElementById('one-click');
-const customCommandInput = document.getElementById('custom-command');
 const emojiPackSelect = document.getElementById('emoji-pack');
 const shareTemplateInput = document.getElementById('share-template');
 const terminalAppSelect = document.getElementById('terminal-app');
@@ -36,11 +35,158 @@ const bridgeStatus = document.getElementById('bridge-status');
 const bridgeHint = document.getElementById('bridge-hint');
 const claudeApiKeyInput = document.getElementById('claude-api-key');
 
+// --- Custom Tools ---
+const toolModal = document.getElementById('tool-modal');
+const toolsList = document.getElementById('custom-tools-list');
+let currentCustomTools = [];
+
+function renderToolsList(tools) {
+  toolsList.textContent = '';
+  if (tools.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'custom-tools-empty';
+    empty.textContent = 'No custom tools yet';
+    toolsList.appendChild(empty);
+    return;
+  }
+  tools.forEach(tool => {
+    const row = document.createElement('div');
+    row.className = 'custom-tool-row';
+
+    const icon = document.createElement('span');
+    icon.className = 'custom-tool-icon';
+    icon.textContent = tool.icon || '🔧';
+
+    const name = document.createElement('span');
+    name.className = 'custom-tool-name';
+    name.textContent = tool.name;
+
+    const actions = document.createElement('div');
+    actions.className = 'custom-tool-actions';
+
+    // Toggle
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = 'toggle-row';
+    toggleLabel.style.gap = '0';
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.className = 'toggle-input';
+    toggleInput.checked = tool.enabled;
+    toggleInput.addEventListener('change', () => toggleTool(tool.id, toggleInput.checked));
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'toggle-slider';
+    toggleSlider.style.transform = 'scale(0.75)';
+    toggleLabel.append(toggleInput, toggleSlider);
+
+    // Edit
+    const editBtn = document.createElement('button');
+    editBtn.className = 'tool-action-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Edit';
+    editBtn.addEventListener('click', () => openToolModal(tool));
+
+    // Delete
+    const delBtn = document.createElement('button');
+    delBtn.className = 'tool-action-btn delete';
+    delBtn.textContent = '🗑️';
+    delBtn.title = 'Delete';
+    delBtn.addEventListener('click', () => deleteTool(tool.id));
+
+    actions.append(toggleLabel, editBtn, delBtn);
+    row.append(icon, name, actions);
+    toolsList.appendChild(row);
+  });
+}
+
+function updateClientSelect(tools) {
+  // Remove old custom options
+  clientSelect.querySelectorAll('option[data-custom]').forEach(o => o.remove());
+  // Add enabled custom tools
+  tools.filter(t => t.enabled).forEach(tool => {
+    const opt = document.createElement('option');
+    opt.value = tool.id;
+    opt.textContent = `${tool.icon || '🔧'} ${tool.name}`;
+    opt.setAttribute('data-custom', 'true');
+    clientSelect.appendChild(opt);
+  });
+}
+
+function saveCustomTools(tools) {
+  currentCustomTools = tools;
+  chrome.storage.sync.set({ customTools: tools });
+  renderToolsList(tools);
+  updateClientSelect(tools);
+}
+
+function openToolModal(tool) {
+  document.getElementById('tool-modal-title').textContent = tool ? 'Edit Tool' : 'Add Custom Tool';
+  document.getElementById('tool-edit-id').value = tool ? tool.id : '';
+  document.getElementById('tool-name').value = tool ? tool.name : '';
+  document.getElementById('tool-icon').value = tool ? tool.icon : '';
+  document.getElementById('tool-command').value = tool ? tool.command : '';
+  toolModal.style.display = 'flex';
+}
+
+function closeToolModal() {
+  toolModal.style.display = 'none';
+}
+
+function saveTool() {
+  const editId = document.getElementById('tool-edit-id').value;
+  const name = document.getElementById('tool-name').value.trim();
+  const icon = document.getElementById('tool-icon').value.trim() || '🔧';
+  const command = document.getElementById('tool-command').value.trim();
+  if (!name || !command) return;
+
+  const tools = [...currentCustomTools];
+  if (editId) {
+    const idx = tools.findIndex(t => t.id === editId);
+    if (idx !== -1) {
+      tools[idx] = { ...tools[idx], name, icon, command };
+    }
+  } else {
+    if (tools.length >= 10) return; // limit
+    tools.push({ id: 'tool_' + Date.now(), name, icon, command, enabled: true });
+  }
+  saveCustomTools(tools);
+  closeToolModal();
+}
+
+function deleteTool(id) {
+  const tools = currentCustomTools.filter(t => t.id !== id);
+  // Reset default client if it was the deleted tool
+  if (clientSelect.value === id) {
+    clientSelect.value = '';
+    chrome.storage.sync.set({ defaultClient: '' });
+    updateOneClickState();
+  }
+  saveCustomTools(tools);
+}
+
+function toggleTool(id, enabled) {
+  const tools = currentCustomTools.map(t => t.id === id ? { ...t, enabled } : t);
+  // If disabling a tool that was default, reset
+  if (!enabled && clientSelect.value === id) {
+    clientSelect.value = '';
+    chrome.storage.sync.set({ defaultClient: '' });
+    updateOneClickState();
+  }
+  saveCustomTools(tools);
+}
+
+document.getElementById('btn-add-tool').addEventListener('click', () => openToolModal(null));
+document.getElementById('tool-save').addEventListener('click', saveTool);
+document.getElementById('tool-cancel').addEventListener('click', closeToolModal);
+toolModal.addEventListener('click', (e) => {
+  if (e.target === toolModal) closeToolModal();
+});
+
 // Load saved settings
 chrome.storage.sync.get({
   defaultClient: '',
   oneClick: false,
   customCommand: '',
+  customTools: [],
   emojiPack: 'animals',
   shareTemplate: '',
   terminalApp: 'auto',
@@ -48,9 +194,18 @@ chrome.storage.sync.get({
   nftStats: { total: 0, tiers: {}, history: [] },
   smileStats: { summaries: 0, chats: 0, installs: 0, repos: [] },
 }, (data) => {
+  // Migration: old customCommand → customTools
+  let tools = data.customTools;
+  if (data.customCommand && tools.length === 0) {
+    tools = [{ id: 'tool_' + Date.now(), name: 'Custom', icon: '⚙️', command: data.customCommand, enabled: true }];
+    chrome.storage.sync.set({ customTools: tools, customCommand: '' });
+  }
+  currentCustomTools = tools;
+  renderToolsList(tools);
+  updateClientSelect(tools);
+
   clientSelect.value = data.defaultClient;
   oneClickToggle.checked = data.oneClick;
-  customCommandInput.value = data.customCommand;
   emojiPackSelect.value = data.emojiPack;
   shareTemplateInput.value = data.shareTemplate;
   terminalAppSelect.value = data.terminalApp;
@@ -81,10 +236,6 @@ clientSelect.addEventListener('change', () => {
 
 oneClickToggle.addEventListener('change', () => {
   chrome.storage.sync.set({ oneClick: oneClickToggle.checked });
-});
-
-customCommandInput.addEventListener('input', () => {
-  chrome.storage.sync.set({ customCommand: customCommandInput.value.trim() });
 });
 
 emojiPackSelect.addEventListener('change', () => {

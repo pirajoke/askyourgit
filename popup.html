@@ -81,8 +81,35 @@
     <div class="divider"></div>
 
     <div class="section">
-      <label class="label" for="custom-command">Custom Command Template</label>
-      <textarea id="custom-command" class="textarea" rows="2" placeholder="my-tool install {url} --setup&#10;Placeholders: {url}, {owner}, {repo}, {stack}"></textarea>
+      <div class="custom-tools-header">
+        <span class="label" style="margin-bottom:0">Custom Tools</span>
+        <button id="btn-add-tool" class="add-tool-btn" title="Add custom tool">+</button>
+      </div>
+      <div id="custom-tools-list"></div>
+    </div>
+
+    <!-- Custom Tool Modal -->
+    <div id="tool-modal" class="tool-modal" style="display:none">
+      <div class="tool-modal-content">
+        <h3 id="tool-modal-title">Add Custom Tool</h3>
+        <input type="hidden" id="tool-edit-id">
+        <div class="tool-field">
+          <label class="label" for="tool-name">Name</label>
+          <input type="text" id="tool-name" class="input" maxlength="20" placeholder="Windsurf">
+        </div>
+        <div class="tool-field">
+          <label class="label" for="tool-icon">Icon (emoji)</label>
+          <input type="text" id="tool-icon" class="input" maxlength="2" placeholder="🌊" style="width:60px">
+        </div>
+        <div class="tool-field">
+          <label class="label" for="tool-command">Command Template</label>
+          <textarea id="tool-command" class="textarea" rows="2" placeholder="windsurf clone {url}&#10;Placeholders: {url}, {owner}, {repo}, {stack}"></textarea>
+        </div>
+        <div class="tool-modal-actions">
+          <button id="tool-save" class="about-close-btn">Save</button>
+          <button id="tool-cancel" class="tool-cancel-btn">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <div class="divider"></div>
