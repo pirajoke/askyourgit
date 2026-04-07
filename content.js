@@ -175,8 +175,7 @@
         id: 'codex',
         label: 'Codex',
         icon: TOOL_ICONS.codex,
-        command: `Clone ${url} into folder "${repo}" and set it up`,
-        codexMode: true,
+        command: `mkdir -p ${repo} && cd ${repo} && codex "clone ${url} here and set it up following the README"`,
       },
     ];
 
@@ -422,27 +421,6 @@
       window.open(openUrl, '_self');
       showFeedback(btn, 'Opening...');
       showToast(TOOL_HINTS[toolId] || 'Opening...');
-      chrome.runtime.sendMessage({ action: 'track-install' });
-      return;
-    }
-    // Codex mode — open app + paste instruction
-    if (opts.codexMode) {
-      try {
-        await chrome.runtime.sendMessage({
-          action: 'execute',
-          toolId,
-          command,
-          url,
-          mode: 'codex',
-        });
-        showFeedback(btn, 'Opened ✓');
-        showToast('Codex opened with instruction — just press Enter!');
-      } catch {
-        // Fallback: copy command to clipboard
-        await copyToClipboard(command);
-        showFeedback(btn, 'Copied ✓');
-        showToast('Open Codex and paste the instruction (Cmd+V).');
-      }
       chrome.runtime.sendMessage({ action: 'track-install' });
       return;
     }
