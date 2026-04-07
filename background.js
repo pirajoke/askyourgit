@@ -167,7 +167,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === 'chat') {
     (async () => {
-      const systemPrompt = `You answer questions about the GitHub repo "${msg.repoName}" (stack: ${msg.stacks?.join(', ') || 'unknown'}). Rules: answer in 2-4 sentences MAX. No lists, no step-by-step instructions unless explicitly asked. Be direct and specific. Use ONLY the README below as your knowledge — if the answer isn't there, say "not mentioned in README".\n\nREADME:\n${msg.readmeText || 'No README available.'}`;
+      const systemPrompt = `You're a friendly dev assistant who knows the repo "${msg.repoName}" (stack: ${msg.stacks?.join(', ') || 'unknown'}). You've read the README below. Answer in 2-4 sentences, be direct. You CAN share opinions, assessments, and recommendations when asked. Use the README as primary context but feel free to add your dev expertise. Reply in the same language the user writes in.\n\nREADME:\n${msg.readmeText || 'No README available.'}`;
 
       const result = await callAI({
         messages: msg.messages,
