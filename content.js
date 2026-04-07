@@ -834,6 +834,16 @@
 
     const panel = document.createElement('div');
     panel.className = 'ai-install-chat-panel';
+    panel.style.position = 'relative';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'ai-install-panel-close';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.remove();
+    });
+    panel.appendChild(closeBtn);
 
     // Model selector bar
     const modelBar = document.createElement('div');
