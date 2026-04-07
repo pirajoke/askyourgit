@@ -3,10 +3,14 @@
 const aboutModal = document.getElementById('about-modal');
 const settingsSection = document.getElementById('settings-section');
 
-// Settings button — toggle settings visibility
-document.getElementById('btn-settings').addEventListener('click', () => {
-  const isHidden = settingsSection.style.display === 'none';
-  settingsSection.style.display = isHidden ? '' : 'none';
+// Launch button — navigate to current tab's repo and trigger SMILE
+document.getElementById('btn-launch').addEventListener('click', () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'trigger-smile' });
+      window.close();
+    }
+  });
 });
 
 // About button

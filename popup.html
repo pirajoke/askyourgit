@@ -8,11 +8,8 @@
   <div class="popup">
     <div class="header">
       <span class="logo">⚡</span>
-      <h1>S.M.I.L.E.</h1>
+      <h1>Settings</h1>
       <div class="header-actions">
-        <button id="btn-settings" class="header-btn" title="Settings">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492ZM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0Z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.902 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319Zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 9.89l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094a1.873 1.873 0 0 0 1.115-2.692l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.116l.094-.318Z"/></svg>
-        </button>
         <button id="btn-about" class="header-btn" title="About SMILE">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm6.5-.25A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>
         </button>
@@ -22,14 +19,24 @@
     <!-- About Modal -->
     <div id="about-modal" class="about-modal" style="display:none">
       <div class="about-content">
-        <span class="about-logo">⚡</span>
+        <div class="about-icon-wrap">
+          <span class="about-logo">⚡</span>
+        </div>
         <h2>S.M.I.L.E.</h2>
+        <p class="about-version" id="about-version">Version 2.3.0</p>
         <p class="about-subtitle">Smart Manager for Installing Libraries Easily</p>
-        <p class="about-version" id="about-version">v2.3.0</p>
-        <div class="about-links">
-          <a href="https://github.com/pirajoke/smile" target="_blank">GitHub</a>
-          <span class="about-sep">·</span>
-          <a href="https://github.com/pirajoke/smile/issues" target="_blank">Report Bug</a>
+        <div class="about-links-list">
+          <a href="https://github.com/pirajoke/smile" target="_blank">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+          <a href="https://github.com/pirajoke/smile/issues" target="_blank">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg>
+            Report Bug
+          </a>
+        </div>
+        <div class="about-footer">
+          <p class="about-copyright">&copy; 2025 Maxim Grachev. MIT License.</p>
         </div>
         <button id="about-close" class="about-close-btn">Close</button>
       </div>
@@ -38,35 +45,22 @@
     <!-- Settings (scrollable content below) -->
     <div id="settings-section">
 
-    <div class="section">
-      <label class="label" for="default-client">Default AI Client</label>
-      <select id="default-client" class="select">
-        <option value="">Choose on each click</option>
-        <option value="claude">Claude Code</option>
-        <option value="cursor">Cursor</option>
-        <option value="codex">Codex</option>
-      </select>
-    </div>
-
-    <div class="section">
-      <label class="toggle-row">
-        <input type="checkbox" id="one-click" class="toggle-input">
-        <span class="toggle-slider"></span>
-        <span class="toggle-label">One-click mode</span>
-      </label>
-      <p class="hint">Skip dropdown — copies default command instantly</p>
+    <div class="section launch-section">
+      <button id="btn-launch" class="launch-circle">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+      </button>
+      <span class="launch-label">Launch S.M.I.L.E.</span>
     </div>
 
     <div class="divider"></div>
 
-    <!-- Terminal Bridge -->
-    <div class="section">
-      <div class="bridge-status-row">
-        <span class="label" style="margin-bottom:0">Terminal Bridge</span>
-        <span id="bridge-status" class="bridge-badge bridge-checking">Checking...</span>
-      </div>
-      <p class="hint" id="bridge-hint">Enables direct command execution in your terminal</p>
-    </div>
+    <!-- Hidden elements for JS compatibility -->
+    <select id="default-client" style="display:none"></select>
+    <input type="checkbox" id="one-click" style="display:none">
+    <span id="bridge-status" style="display:none"></span>
+    <span id="bridge-hint" style="display:none"></span>
 
     <div class="section">
       <label class="label" for="terminal-app">Terminal App</label>
@@ -80,39 +74,8 @@
 
     <div class="divider"></div>
 
-    <div class="section">
-      <div class="custom-tools-header">
-        <span class="label" style="margin-bottom:0">Custom Tools</span>
-        <button id="btn-add-tool" class="add-tool-btn" title="Add custom tool">+</button>
-      </div>
-      <div id="custom-tools-list"></div>
-    </div>
-
-    <!-- Custom Tool Modal -->
-    <div id="tool-modal" class="tool-modal" style="display:none">
-      <div class="tool-modal-content">
-        <h3 id="tool-modal-title">Add Custom Tool</h3>
-        <input type="hidden" id="tool-edit-id">
-        <div class="tool-field">
-          <label class="label" for="tool-name">Name</label>
-          <input type="text" id="tool-name" class="input" maxlength="20" placeholder="Windsurf">
-        </div>
-        <div class="tool-field">
-          <label class="label" for="tool-icon">Icon (emoji)</label>
-          <input type="text" id="tool-icon" class="input" maxlength="2" placeholder="🌊" style="width:60px">
-        </div>
-        <div class="tool-field">
-          <label class="label" for="tool-command">Command Template</label>
-          <textarea id="tool-command" class="textarea" rows="2" placeholder="windsurf clone {url}&#10;Placeholders: {url}, {owner}, {repo}, {stack}"></textarea>
-        </div>
-        <div class="tool-modal-actions">
-          <button id="tool-save" class="about-close-btn">Save</button>
-          <button id="tool-cancel" class="tool-cancel-btn">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
+    <div id="custom-tools-list" style="display:none"></div>
+    <div id="tool-modal" class="tool-modal" style="display:none"></div>
 
     <!-- Claude API Key -->
     <div class="section">
@@ -121,76 +84,16 @@
       <p class="hint">For AI-powered repo summaries (Haiku model)</p>
     </div>
 
-    <div class="divider"></div>
-
-    <!-- Usage Stats -->
-    <div class="section">
-      <div class="stats-header">
-        <span class="label" style="margin-bottom:0">Usage Stats</span>
-      </div>
-      <div class="usage-stats-grid">
-        <div class="usage-stat">
-          <span class="usage-stat-value" id="stat-summaries">0</span>
-          <span class="usage-stat-label">Summaries</span>
-        </div>
-        <div class="usage-stat">
-          <span class="usage-stat-value" id="stat-chats">0</span>
-          <span class="usage-stat-label">Chats</span>
-        </div>
-        <div class="usage-stat">
-          <span class="usage-stat-value" id="stat-installs">0</span>
-          <span class="usage-stat-label">Installs</span>
-        </div>
-        <div class="usage-stat">
-          <span class="usage-stat-value" id="stat-repos">0</span>
-          <span class="usage-stat-label">Repos</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- NFT Settings -->
-    <div class="section">
-      <label class="label" for="emoji-pack">Emoji Pack</label>
-      <select id="emoji-pack" class="select">
-        <option value="animals">🦊 Animals</option>
-        <option value="space">🪐 Space</option>
-        <option value="food">🍕 Food</option>
-        <option value="objects">🎸 Objects</option>
-      </select>
-    </div>
-
-    <div class="section">
-      <label class="label" for="share-template">Share Format</label>
-      <textarea id="share-template" class="textarea" rows="2" placeholder="{emoji} {url}&#10;Placeholders: {emoji}, {url}, {fullurl}, {repo}"></textarea>
-      <p class="hint" style="margin-left:0">Default: {emoji} {url}</p>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- NFT Stats -->
-    <div class="section">
-      <div class="stats-header">
-        <span class="label" style="margin-bottom:0">Roll Stats</span>
-        <span id="stats-total" class="stats-total">0 rolls</span>
-      </div>
-      <div id="stats-tiers" class="stats-tiers"></div>
-    </div>
-
-    <!-- Share History -->
-    <div class="section">
-      <label class="label">Recent Shares</label>
-      <div id="share-history" class="share-history">
-        <span class="hint" style="margin-left:0">No shares yet</span>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="section">
-      <p class="footer-text">Works on GitHub, GitLab, and Bitbucket.</p>
-    </div>
+    <!-- Hidden elements to prevent JS errors -->
+    <div id="stat-summaries" style="display:none"></div>
+    <div id="stat-chats" style="display:none"></div>
+    <div id="stat-installs" style="display:none"></div>
+    <div id="stat-repos" style="display:none"></div>
+    <div id="emoji-pack" style="display:none"></div>
+    <div id="share-template" style="display:none"></div>
+    <div id="stats-total" style="display:none"></div>
+    <div id="stats-tiers" style="display:none"></div>
+    <div id="share-history" style="display:none"></div>
     </div><!-- /settings-section -->
   </div>
   <script src="popup.js"></script>

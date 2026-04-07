@@ -285,17 +285,18 @@
 
   async function copyEmojiShare(emoji, url, shareTemplate) {
     const shortUrl = url.replace(/^https?:\/\/[^/]+\//, '');
+    const repoName = url.split('/').slice(-1)[0];
     let plain;
     if (shareTemplate) {
       plain = shareTemplate
         .replace(/\{emoji\}/g, emoji)
         .replace(/\{url\}/g, shortUrl)
         .replace(/\{fullurl\}/g, url)
-        .replace(/\{repo\}/g, url.split('/').slice(-1)[0]);
+        .replace(/\{repo\}/g, repoName);
     } else {
-      plain = `${emoji} ${shortUrl}`;
+      plain = `${emoji} ${repoName} — ${url}`;
     }
-    const html = `<a href="${url}">${emoji}</a> <a href="${url}">${shortUrl}</a>`;
+    const html = `${emoji} <a href="${url}">${repoName}</a>`;
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -1230,7 +1231,6 @@
                           nft.tier === 'epic' ? ' ai-install-glow-epic' :
                           nft.tier === 'rare' ? ' ai-install-glow-rare' : '';
 
-        // Lootbox spin: show random emojis rapidly, then land on result
         const allEmojis = Object.values(pack.tiers).flat();
         let spinCount = 0;
         const spinInterval = setInterval(() => {
@@ -1247,7 +1247,6 @@
           spinCount++;
           if (spinCount >= 8) {
             clearInterval(spinInterval);
-            // Reveal!
             shareItem.textContent = '';
             const revealEmoji = document.createElement('span');
             revealEmoji.className = 'ai-install-nft-emoji-inline' + glowClass;
@@ -1302,10 +1301,16 @@
         || document.querySelector('.git-clone-holder button')
         || document.querySelector('button[data-qa="code-dropdown"]');
       if (cloneBtn) return cloneBtn;
-      const allBtns = document.querySelectorAll('button');
-      for (const btn of allBtns) {
-        const t = btn.textContent.trim();
-        if (t === 'Code' || t === 'Clone') return btn;
+      // Only match Code/Clone buttons in the main content area, not the sidebar
+      const mainContent = document.querySelector('.content-wrapper')
+        || document.querySelector('#content-body')
+        || document.querySelector('main');
+      if (mainContent) {
+        const allBtns = mainContent.querySelectorAll('button');
+        for (const btn of allBtns) {
+          const t = btn.textContent.trim();
+          if (t === 'Code' || t === 'Clone') return btn;
+        }
       }
     }
 
@@ -1391,6 +1396,22 @@
 
   // --- Keyboard Shortcut (Cmd+Shift+I) ---
   chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'trigger-smile') {
+      const btn = document.getElementById(BUTTON_ID);
+      if (btn) {
+        btn.click();
+      } else {
+        const info = getRepoInfo();
+        if (info) {
+          injectButton();
+          setTimeout(() => {
+            const injected = document.getElementById(BUTTON_ID);
+            if (injected) injected.click();
+          }, 100);
+        }
+      }
+      return;
+    }
     if (msg.action === 'quick-install') {
       const info = getRepoInfo();
       if (!info) return;
