@@ -506,6 +506,16 @@
 
   // --- Add Custom Tool Modal ---
 
+  const TOOL_PRESETS = [
+    { name: 'Windsurf', icon: '🌊', command: 'windsurf clone {url}' },
+    { name: 'VS Code', icon: '💠', command: 'code --folder-uri vscode://vscode.git/clone?url={url}' },
+    { name: 'JetBrains', icon: '🧠', command: 'idea://clone/{url}' },
+    { name: 'Zed', icon: '⚡', command: 'zed clone {url}' },
+    { name: 'Aider', icon: '🤖', command: 'git clone {url} && cd {repo} && aider' },
+    { name: 'Warp', icon: '🚀', command: 'warp clone {url}' },
+    { name: 'Terminal', icon: '🖥️', command: 'git clone {url} && cd {repo}' },
+  ];
+
   function showAddToolModal(onSave) {
     const overlay = document.createElement('div');
     overlay.className = 'ai-install-confirm-overlay';
@@ -517,6 +527,31 @@
     title.className = 'ai-install-confirm-title';
     title.textContent = 'Add Custom Tool';
 
+    // Presets grid
+    const presetsLabel = document.createElement('div');
+    presetsLabel.className = 'ai-install-tool-presets-label';
+    presetsLabel.textContent = 'Quick add';
+
+    const presetsGrid = document.createElement('div');
+    presetsGrid.className = 'ai-install-tool-presets';
+
+    TOOL_PRESETS.forEach(preset => {
+      const btn = document.createElement('button');
+      btn.className = 'ai-install-tool-preset-btn';
+      btn.innerHTML = `<span class="ai-install-preset-icon">${preset.icon}</span><span class="ai-install-preset-name">${preset.name}</span>`;
+      btn.addEventListener('click', () => {
+        nameInput.value = preset.name;
+        iconInput.value = preset.icon;
+        cmdInput.value = preset.command;
+      });
+      presetsGrid.appendChild(btn);
+    });
+
+    // Divider
+    const orDiv = document.createElement('div');
+    orDiv.className = 'ai-install-tool-or';
+    orDiv.textContent = 'or customize';
+
     const form = document.createElement('div');
     form.className = 'ai-install-tool-form';
 
@@ -526,12 +561,12 @@
 
     const nameInput = document.createElement('input');
     nameInput.className = 'ai-install-tool-input';
-    nameInput.placeholder = 'Name (e.g. Windsurf)';
+    nameInput.placeholder = 'Name';
     nameInput.maxLength = 20;
 
     const iconInput = document.createElement('input');
     iconInput.className = 'ai-install-tool-input ai-install-tool-icon-input';
-    iconInput.placeholder = '🌊';
+    iconInput.placeholder = '🔧';
     iconInput.maxLength = 2;
 
     nameRow.append(nameInput, iconInput);
@@ -539,8 +574,8 @@
     // Command
     const cmdInput = document.createElement('textarea');
     cmdInput.className = 'ai-install-tool-textarea';
-    cmdInput.placeholder = 'Command template\ne.g. windsurf clone {url}\nPlaceholders: {url}, {owner}, {repo}, {stack}';
-    cmdInput.rows = 3;
+    cmdInput.placeholder = 'Command: {url}, {owner}, {repo}, {stack}';
+    cmdInput.rows = 2;
 
     // Actions
     const actions = document.createElement('div');
@@ -556,11 +591,9 @@
 
     actions.append(cancelBtn, saveBtn);
     form.append(nameRow, cmdInput);
-    modal.append(title, form, actions);
+    modal.append(title, presetsLabel, presetsGrid, orDiv, form, actions);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-
-    nameInput.focus();
 
     const cleanup = () => {
       overlay.classList.add('ai-install-confirm-closing');
