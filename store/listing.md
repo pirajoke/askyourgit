@@ -30,7 +30,7 @@ PRIVACY:
 - No data collection
 - No external tracking
 - No analytics
-- Fully open source: github.com/pirajoke/smile
+- Fully open source: github.com/pirajoke/askyourgit
 
 ## Category
 Developer Tools
