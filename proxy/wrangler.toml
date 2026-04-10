@@ -1,3 +1,7 @@
 name = "smile-ai-proxy"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "SMILE_STATS"
+id = "75105b9897f442d98104f12147789471"

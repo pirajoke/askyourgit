@@ -4,7 +4,7 @@
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -31,7 +31,18 @@ export default {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
+    // --- GET /stats or health check ---
     if (request.method === 'GET') {
+      const url = new URL(request.url);
+      const secret = url.searchParams.get('secret');
+      if (url.pathname === '/stats' && secret && env.STATS_SECRET && secret === env.STATS_SECRET) {
+        const list = await env.SMILE_STATS.list();
+        const stats = {};
+        for (const key of list.keys) {
+          stats[key.name] = Number(await env.SMILE_STATS.get(key.name)) || 0;
+        }
+        return Response.json(stats, { headers: CORS_HEADERS });
+      }
       return Response.json({ status: 'ok', service: 'smile-ai-proxy' }, { headers: CORS_HEADERS });
     }
 
@@ -45,6 +56,29 @@ export default {
         { error: 'Rate limit exceeded. Try again later.' },
         { status: 429, headers: CORS_HEADERS }
       );
+    }
+
+    // --- POST /event — anonymous analytics ---
+    const url = new URL(request.url);
+    if (url.pathname === '/event') {
+      try {
+        const { action, tool, stack } = await request.json();
+        const VALID_ACTIONS = ['install', 'summary', 'chat', 'stack_detected'];
+        if (!action || !VALID_ACTIONS.includes(action)) {
+          return Response.json({ error: 'Invalid action' }, { status: 400, headers: CORS_HEADERS });
+        }
+        const day = new Date().toISOString().slice(0, 10);
+        const increments = [`total:${action}`, `day:${day}:${action}`];
+        if (tool) increments.push(`total:${action}:${tool}`);
+        if (stack) increments.push(`total:stack:${stack}`);
+        await Promise.all(increments.map(async (key) => {
+          const val = Number(await env.SMILE_STATS.get(key)) || 0;
+          await env.SMILE_STATS.put(key, String(val + 1));
+        }));
+        return Response.json({ ok: true }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json({ error: 'Bad request' }, { status: 400, headers: CORS_HEADERS });
+      }
     }
 
     if (!env.ANTHROPIC_API_KEY) {

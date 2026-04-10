@@ -60,6 +60,6 @@ for nm_dir in "${NM_DIRS[@]}"; do
 done
 
 echo ""
-echo "SMILE Terminal Bridge installed!"
+echo "Ask your GIT — Terminal Bridge installed!"
 echo "Now load the extension (chrome://extensions → Load unpacked → $EXT_DIR)"
 echo "Then restart the browser."

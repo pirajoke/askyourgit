@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "S.M.I.L.E. — Install with AI",
-  "version": "2.3.0",
-  "description": "One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo",
+  "name": "Ask your GIT — AI for any repo",
+  "version": "3.0.0",
+  "description": "Ask AI about any GitHub repo and install with one click. Claude Code, Cursor, Codex & more.",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
   "host_permissions": ["https://api.anthropic.com/*", "https://vercel-nu-wheat.vercel.app/*", "https://api.github.com/*"],
   "content_security_policy": {

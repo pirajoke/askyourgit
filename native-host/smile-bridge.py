@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SMILE AI Install — Native Messaging Host for terminal command injection."""
+"""Ask your GIT — Native Messaging Host for terminal command execution."""
 
 import json
 import struct

@@ -1,174 +1,97 @@
-# S.M.I.L.E. — Smart Method for Installing & Learning Effortlessly
+# Ask your GIT — AI for any repo
 
-> One-click AI-powered installation for any GitHub, GitLab, or Bitbucket repo. Clone, set up, and explore projects instantly with Claude Code, Cursor, Codex, or Terminal.
+> Ask AI about any GitHub, GitLab, or Bitbucket repo. Get instant summaries, chat with AI about the code, then install with one click using Claude Code, Cursor, Codex, or your own tools.
 
-![Install with AI](https://img.shields.io/badge/Install_with-AI_%E2%9A%A1-blueviolet?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-2.3.0-blue?style=flat-square)
+![Ask your GIT](https://img.shields.io/badge/Ask_your-GIT_%E2%9A%A1-blueviolet?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.0.0-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
 ---
 
-## What is SMILE?
+## What is Ask your GIT?
 
-SMILE is a Chrome extension that adds an **"Install with AI"** button to every repository on GitHub, GitLab, and Bitbucket. Instead of manually reading installation docs, copying commands, and setting up environments — you click one button and AI handles everything.
+A Chrome extension that adds an **"Ask your GIT"** button to every repository page. Instead of reading through long READMEs — ask AI what the project does, how to use it, and install it with one click.
 
-**The problem:** You find a cool repo, but setting it up takes 10-30 minutes: read README, install dependencies, configure environment, fix issues.
+**The problem:** You find a cool repo, but understanding it takes 10-30 minutes: read README, figure out the stack, install dependencies, configure environment.
 
-**The solution:** Click "Install with AI" → AI reads the README, detects the stack, and sets up the project automatically.
+**The solution:** Click "Ask your GIT" → AI explains the project → one click to install with your favorite AI coding tool.
 
 ---
 
 ## Features
 
-### Core: One-Click Install
+### Ask AI About Any Repo
 
-| Feature | Description |
-|---------|-------------|
-| **Claude Code** | Generates a Claude command that clones the repo and sets it up following the README |
-| **Cursor** | Opens the repo directly in Cursor IDE via URL scheme |
-| **Terminal + Claude** | Clones repo, installs dependencies, then launches Claude for setup |
-| **Codex CLI** | Sends a Codex command to clone and configure the project |
-| **Custom Command** | Define your own install template with `{url}`, `{owner}`, `{repo}`, `{stack}` placeholders |
+Click **"Quick Summary"** for an instant AI overview:
+- What the project does
+- Key features and tech stack
+- How to get started
+
+Click **"Ask AI"** to chat interactively:
+- Ask questions about the repo without reading the code
+- Multi-turn conversation with follow-up questions
+- **3 model tiers:** Haiku (fast, free) / Sonnet (deep) / Opus (max)
+
+### One-Click Install
+
+| Tool | Description |
+|------|-------------|
+| **Claude Code** | Generates a Claude command that clones and sets up the project |
+| **Cursor** | Opens the repo directly in Cursor IDE |
+| **Codex CLI** | Sends a Codex command to clone and configure |
+| **Custom Tools** | Add your own IDE/tools with `{url}`, `{owner}`, `{repo}`, `{stack}` placeholders |
 
 ### Smart Stack Detection
 
-Automatically detects the project's tech stack by scanning the file tree:
-
-- **Node.js** — `package.json` detected → runs `npm install`
-- **TypeScript** — `tsconfig.json` detected
-- **Next.js** — `next.config.js/mjs/ts` detected
-- **Python** — `requirements.txt`, `pyproject.toml`, `setup.py`, `Pipfile` → creates venv & installs
-- **Rust** — `Cargo.toml` → runs `cargo build`
-- **Go** — `go.mod` → runs `go build`
-- **Ruby** — `Gemfile` detected
-- **Java** — `build.gradle` or `pom.xml` detected
-- **Docker** — `Dockerfile` or `docker-compose.yml` detected, noted in install command
-
-Stack badges are displayed at the top of the dropdown so you instantly see what you're working with.
+Automatically detects the project's tech stack:
+- **Node.js** / **TypeScript** / **Next.js**
+- **Python** (requirements.txt, pyproject.toml, Pipfile)
+- **Rust** (Cargo.toml) / **Go** (go.mod)
+- **Ruby** / **Java** / **Docker**
 
 ### Trust & Safety Info
 
-Before installing, SMILE shows key trust indicators (GitHub only):
-
-- **Stars** — repository popularity
-- **License** — MIT, Apache, GPL, etc.
-- **Last commit** — how recently the project was updated
-
-### AI Quick Summary
-
-Click **"Quick Summary"** to get an AI-generated overview of any repo:
-
-- What the project does
-- Key features
-- How to get started
-
-Summaries are **cached for 24 hours** per repo — second click is instant. Works via a free proxy (Haiku model) with no API key required.
-
-### AI Chat — Ask About Any Repo
-
-Click **"Ask AI"** to open an interactive chat right inside the dropdown:
-
-- Ask questions about the repo without reading the code
-- AI uses the README as context to answer
-- Multi-turn conversation — ask follow-up questions
-- **3 model tiers:**
-  - **Haiku (fast)** — free, instant answers via proxy
-  - **Sonnet (deep)** — requires your API key, more detailed analysis
-  - **Opus (max)** — requires your API key, most capable model
-
-Example questions:
-- "How do I configure authentication?"
-- "What database does this use?"
-- "What's the deployment process?"
-- "Is this production-ready?"
-
-### NFT Emoji Share
-
-Share repos with style using randomized emoji lootboxes:
-
-- **4 emoji packs:** Animals, Space, Food, Objects
-- **4 rarity tiers:** Common (60%), Rare (25%), Epic (10%), Legendary (5%)
-- **Lootbox animation** — spin effect before reveal
-- **Glow effects** — Rare/Epic/Legendary emojis have special visual effects
-- **Share to:** Telegram, WhatsApp, X (Twitter), or clipboard
-- **Custom share format** — use `{emoji}`, `{url}`, `{repo}` placeholders
-- **Roll stats** — track your total rolls, tier distribution, and recent history
-
-### Terminal Bridge (Optional)
-
-Enable direct command execution in your terminal without copy-pasting:
-
-1. Run `bash native-host/install.sh`
-2. Commands are sent directly to Terminal.app, iTerm2, or Warp
-3. Status shown in extension popup: Connected / Not installed
-
-### SMILE Badge for Repos
-
-Copy a ready-made badge for your repo's README:
-
-```markdown
-[![Install with AI](https://img.shields.io/badge/Install_with-AI_%E2%9A%A1-blueviolet?style=for-the-badge)](https://github.com/your/repo)
-```
-
-SMILE auto-detects repos that have this badge and shows a "SMILE-enabled repo" indicator.
+Before installing, see key trust indicators (GitHub only):
+- Stars, License, Last commit date
 
 ### Additional Features
 
-- **Dark mode** — full support for system dark mode and GitHub's dark theme
-- **Keyboard shortcut** — `Cmd+Shift+I` (Mac) / `Ctrl+Shift+I` (Windows) to copy the default install command
-- **One-click mode** — skip the dropdown, instantly copy/execute the default command
-- **Confirm modal** — safety confirmation before any install action
-- **Multi-platform** — works on GitHub, GitLab, and Bitbucket
-- **Extension badge** — shows your last rolled emoji on the extension icon
+- **25 tool presets** — Windsurf, Zed, JetBrains, VS Code, and more
+- **Terminal Bridge** — execute commands directly in Terminal.app, iTerm2, or Warp
+- **Dark mode** — full support for system and GitHub dark themes
+- **Keyboard shortcut** — `Cmd+Shift+I` / `Ctrl+Shift+I`
+- **One-click mode** — skip dropdown, instantly copy default command
+- **Zero tracking** — no data collection, no analytics, fully open source
 
 ---
 
-## Install in 3 Steps
+## Install
 
-### 1. Download
+### From Chrome Web Store
 
-[**Download ZIP**](https://github.com/pirajoke/smile/releases/latest/download/smile-extension.zip) from the latest release.
+Coming soon — or install manually:
 
-### 2. Unzip
+### Manual Install
 
-Double-click `smile-extension.zip` — a folder will appear.
-
-### 3. Load into Chrome
-
-1. Go to `chrome://extensions`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **"Load unpacked"**
-4. Select the unzipped folder
-5. Visit any GitHub repo — the **"Install with AI"** button appears next to the Code button
-
----
-
-## Settings (Extension Popup)
-
-| Setting | Description |
-|---------|-------------|
-| **Default AI Client** | Choose which tool to use by default (Claude, Cursor, Terminal, Codex) |
-| **One-click mode** | Skip dropdown — instantly runs the default command |
-| **Claude API Key** | Optional. Enables AI summaries and chat with Sonnet/Opus models |
-| **Terminal App** | Choose terminal: Auto-detect, Terminal.app, iTerm2, or Warp |
-| **Custom Command** | Your own install command template |
-| **Emoji Pack** | Choose lootbox theme: Animals, Space, Food, or Objects |
-| **Share Format** | Custom format for emoji shares |
-| **Roll Stats** | View your roll history and tier distribution |
+1. [**Download ZIP**](https://github.com/pirajoke/smile/releases/latest/download/smile-extension.zip) from the latest release
+2. Unzip the folder
+3. Go to `chrome://extensions` → Enable **Developer mode**
+4. Click **"Load unpacked"** → select the unzipped folder
+5. Visit any GitHub repo — the button appears next to the Code button
 
 ---
 
 ## Architecture
 
 ```
-content.js     — Main content script: button injection, dropdown UI, stack detection,
-                  trust info, README extraction, AI summary/chat panels, NFT system
-background.js  — Service worker: command execution, Claude API proxy, model routing
-content.css    — All styles including dark mode support
-popup.html/js  — Extension settings UI
+content.js     — Button injection, dropdown UI, stack detection,
+                  trust info, AI summary/chat panels
+background.js  — Service worker: AI proxy, model routing, command execution
+content.css    — Styles + dark mode
+popup.html/js  — Extension settings
 manifest.json  — Chrome Extension Manifest V3
-native-host/   — Optional terminal bridge for direct command execution
+native-host/   — Optional terminal bridge
 proxy/         — Cloudflare Worker / Vercel proxy for free AI tier
 ```
 
@@ -180,33 +103,28 @@ proxy/         — Cloudflare Worker / Vercel proxy for free AI tier
 git clone https://github.com/pirajoke/smile.git
 ```
 
-Load the repo folder directly into `chrome://extensions` with Developer mode on.
+Load the folder into `chrome://extensions` with Developer mode on.
 
 ### AI Proxy (for free tier)
 
-The free Haiku tier requires a backend proxy to keep the API key secure:
-
 ```bash
 cd proxy
-# Option 1: Cloudflare Workers
+# Cloudflare Workers
 npx wrangler login && npx wrangler deploy
 npx wrangler secret put ANTHROPIC_API_KEY
 
-# Option 2: Vercel
+# Or Vercel
 cd vercel && vercel deploy
 vercel env add ANTHROPIC_API_KEY
 ```
-
-Update `PROXY_URL` in `background.js` with your deployed URL.
 
 ---
 
 ## Privacy
 
 - No data collection, no analytics, no tracking
-- API key stored locally in `chrome.storage.sync`
-- AI chat sends only README text to the API — no personal data
-- Summary cache stored locally in `chrome.storage.local`
+- API key stored locally in Chrome storage
+- AI chat sends only README text to the API
 - Open source — inspect every line of code
 
 ---

@@ -422,7 +422,7 @@
       window.open(openUrl, '_self');
       showFeedback(btn, 'Opening...');
       showToast(TOOL_HINTS[toolId] || 'Opening...');
-      chrome.runtime.sendMessage({ action: 'track-install' });
+      chrome.runtime.sendMessage({ action: 'track-install', tool: toolId });
       return;
     }
     // Try to auto-execute via native host
@@ -448,7 +448,7 @@
     await copyToClipboard(command);
     showCopiedFeedback(btn);
     showToast(TOOL_HINTS[toolId] || 'Command copied! Paste into your terminal.');
-    chrome.runtime.sendMessage({ action: 'track-install' });
+    chrome.runtime.sendMessage({ action: 'track-install', tool: toolId });
   }
 
   // --- Confirm Modal ---
@@ -1065,7 +1065,7 @@
       if (hasSmileBadge) {
         const enabled = document.createElement('div');
         enabled.className = 'ai-install-smile-enabled';
-        enabled.textContent = '⚡ SMILE-enabled repo';
+        enabled.textContent = '⚡ Ask your GIT enabled';
         dropdown.appendChild(enabled);
       }
 
@@ -1202,7 +1202,7 @@
         try {
           chrome.runtime.sendMessage({ action: 'open-popup' });
         } catch {}
-        showToast('Opening settings... (or click ⚡ SMILE icon in toolbar)');
+        showToast('Opening settings... (or click ⚡ Ask your GIT icon in toolbar)');
       });
       dropdown.appendChild(settingsItem);
 
