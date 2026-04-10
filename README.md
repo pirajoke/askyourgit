@@ -74,7 +74,7 @@ Coming soon — or install manually:
 
 ### Manual Install
 
-1. [**Download ZIP**](https://github.com/pirajoke/askyourgit/releases/latest/download/smile-extension.zip) from the latest release
+1. [**Download ZIP**](https://github.com/pirajoke/askyourgit/releases/latest/download/askyourgit-v3.0.0.zip) from the latest release
 2. Unzip the folder
 3. Go to `chrome://extensions` → Enable **Developer mode**
 4. Click **"Load unpacked"** → select the unzipped folder
