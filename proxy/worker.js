@@ -1,11 +1,14 @@
-// Cloudflare Worker — SMILE AI Proxy
+// Cloudflare Worker — Ask your GIT AI Proxy
 // Deploy: wrangler deploy
-// Set secret: wrangler secret put ANTHROPIC_API_KEY
+// Set secrets: wrangler secret put ANTHROPIC_API_KEY
+//              wrangler secret put STATS_SECRET
+// Set vars:    MONTHLY_BUDGET_LIMIT (default 500 requests/month)
+//              DAILY_PER_USER_LIMIT (default 15 requests/day)
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-installation-id',
 };
 
 // Simple in-memory rate limiter (per-IP, resets on worker restart)
@@ -83,8 +86,31 @@ export default {
 
     if (!env.ANTHROPIC_API_KEY) {
       return Response.json(
-        { error: 'Server misconfigured: missing API key', hasEnv: Object.keys(env).join(',') },
+        { error: 'Server misconfigured: missing API key' },
         { status: 500, headers: CORS_HEADERS }
+      );
+    }
+
+    // --- Monthly budget kill-switch ---
+    const monthKey = `budget:${new Date().toISOString().slice(0, 7)}`;
+    const monthCount = Number(await env.SMILE_STATS.get(monthKey)) || 0;
+    const monthlyLimit = Number(env.MONTHLY_BUDGET_LIMIT) || 500;
+    if (monthCount >= monthlyLimit) {
+      return Response.json(
+        { error: 'Monthly budget exceeded. Add your own Claude API key in settings.' },
+        { status: 503, headers: CORS_HEADERS }
+      );
+    }
+
+    // --- Per-installation rate limit (15/day default) ---
+    const installId = request.headers.get('x-installation-id') || ip;
+    const dailyUserKey = `user:${new Date().toISOString().slice(0, 10)}:${installId.slice(0, 16)}`;
+    const dailyUserCount = Number(await env.SMILE_STATS.get(dailyUserKey)) || 0;
+    const dailyPerUserLimit = Number(env.DAILY_PER_USER_LIMIT) || 15;
+    if (dailyUserCount >= dailyPerUserLimit) {
+      return Response.json(
+        { error: 'Daily limit reached. Add your Claude API key in settings for unlimited use.' },
+        { status: 429, headers: CORS_HEADERS }
       );
     }
 
@@ -126,6 +152,11 @@ export default {
       const data = await response.json();
 
       if (data.content && data.content[0]) {
+        // Increment budget + per-user counters
+        await Promise.all([
+          env.SMILE_STATS.put(monthKey, String(monthCount + 1)),
+          env.SMILE_STATS.put(dailyUserKey, String(dailyUserCount + 1)),
+        ]);
         return Response.json(
           { content: data.content[0].text },
           { headers: CORS_HEADERS }
@@ -133,7 +164,7 @@ export default {
       }
 
       return Response.json(
-        { error: data.error?.message || JSON.stringify(data), apiStatus: response.status, keyPrefix: env.ANTHROPIC_API_KEY?.slice(0, 12) },
+        { error: data.error?.message || 'API error' },
         { status: response.status, headers: CORS_HEADERS }
       );
     } catch (err) {

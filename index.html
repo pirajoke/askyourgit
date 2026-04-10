@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ask your GIT — AI for any repo</title>
+  <meta name="description" content="Ask AI about any GitHub repo and install with one click. Chrome extension for developers.">
+  <meta property="og:title" content="Ask your GIT — AI for any repo">
+  <meta property="og:description" content="Ask AI about any GitHub repo. Get instant summaries, chat about the code, install with one click.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pirajoke.github.io/smile/">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.6;
+    }
+    a { color: #7c3aed; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .hero-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero .subtitle {
+      font-size: 20px;
+      color: #8b949e;
+      margin-bottom: 32px;
+    }
+    .cta-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(124,58,237,0.3); }
+    .btn-primary {
+      background: #7c3aed;
+      color: white;
+    }
+    .btn-secondary {
+      background: #21262d;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+    }
+
+    .demo {
+      max-width: 800px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .demo-placeholder {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 60px 20px;
+      color: #8b949e;
+      font-size: 14px;
+    }
+
+    .features {
+      max-width: 900px;
+      margin: 0 auto 80px;
+      padding: 0 20px;
+    }
+    .features h2 {
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 40px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .feature-card .icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    .feature-card h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      color: #8b949e;
+      font-size: 14px;
+    }
+
+    .tools {
+      max-width: 700px;
+      margin: 0 auto 80px;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .tools h2 {
+      font-size: 32px;
+      margin-bottom: 16px;
+    }
+    .tools p {
+      color: #8b949e;
+      margin-bottom: 24px;
+    }
+    .tool-badges {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .tool-badge {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .install {
+      text-align: center;
+      padding: 60px 20px 80px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .install h2 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    .install p {
+      color: #8b949e;
+      margin-bottom: 24px;
+    }
+    .install code {
+      display: block;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 14px;
+      color: #e6edf3;
+      margin-bottom: 24px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid #21262d;
+      color: #8b949e;
+      font-size: 13px;
+    }
+    footer a { color: #8b949e; }
+    footer a:hover { color: #e6edf3; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-icon">&#9889;</div>
+    <h1>Ask your GIT</h1>
+    <p class="subtitle">Ask AI about any GitHub repo. Get instant summaries, chat about the code, and install with one click.</p>
+    <div class="cta-row">
+      <a href="https://github.com/pirajoke/smile" class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+      <a href="https://github.com/pirajoke/smile/releases/latest/download/smile-extension.zip" class="btn btn-secondary">
+        Download ZIP
+      </a>
+    </div>
+  </div>
+
+  <div class="demo">
+    <div class="demo-placeholder">
+      Demo GIF coming soon — record a 30-second walkthrough of the extension in action
+    </div>
+  </div>
+
+  <div class="features">
+    <h2>Features</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="icon">&#129302;</div>
+        <h3>AI Quick Summary</h3>
+        <p>Instant AI-generated overview of any repo. What it does, key features, how to start. Free, no API key needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&#128172;</div>
+        <h3>Ask AI Chat</h3>
+        <p>Interactive chat about any repo. Ask about setup, architecture, dependencies — without reading the code.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&#9889;</div>
+        <h3>One-Click Install</h3>
+        <p>Clone and set up any project with Claude Code, Cursor, Codex CLI, or your own custom tools.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&#128269;</div>
+        <h3>Smart Stack Detection</h3>
+        <p>Automatically detects Node.js, Python, Rust, Go, Docker, Ruby, Java and generates the right setup commands.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&#128737;</div>
+        <h3>Trust Info</h3>
+        <p>See stars, license, and last commit before installing. Make informed decisions at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">&#128274;</div>
+        <h3>Privacy First</h3>
+        <p>Zero tracking, zero analytics, zero data collection. Fully open source. MIT licensed.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <h2>Works with your tools</h2>
+    <p>25+ presets included. Add your own custom tools.</p>
+    <div class="tool-badges">
+      <span class="tool-badge">Claude Code</span>
+      <span class="tool-badge">Cursor</span>
+      <span class="tool-badge">Codex CLI</span>
+      <span class="tool-badge">Windsurf</span>
+      <span class="tool-badge">Zed</span>
+      <span class="tool-badge">VS Code</span>
+      <span class="tool-badge">JetBrains</span>
+      <span class="tool-badge">Terminal</span>
+    </div>
+  </div>
+
+  <div class="install">
+    <h2>Install manually</h2>
+    <p>Download, unzip, load into Chrome.</p>
+    <code>chrome://extensions &rarr; Developer mode &rarr; Load unpacked</code>
+    <a href="https://github.com/pirajoke/smile/releases/latest/download/smile-extension.zip" class="btn btn-primary">Download Latest Release</a>
+  </div>
+
+  <footer>
+    <p>&copy; 2025-2026 Maxim Grachev &middot; <a href="https://github.com/pirajoke/smile">GitHub</a> &middot; <a href="privacy-policy.html">Privacy Policy</a> &middot; MIT License</p>
+  </footer>
+</body>
+</html>

@@ -5,7 +5,6 @@ const kvReady = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
 const kv = kvReady ? _kv : null;
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const SMILE_TOKEN = process.env.SMILE_TOKEN || 'smile-2024-secret';
 const RATE_LIMIT = 20; // per IP per hour
 const RATE_WINDOW = 3600; // seconds
 const DAILY_CAP = 500; // total requests per day
@@ -62,15 +61,15 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-smile-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-installation-id');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Token validation
-  const token = req.headers['x-smile-token'];
-  if (token !== SMILE_TOKEN) {
-    return res.status(403).json({ error: 'Unauthorized' });
+  // Require installation ID header (rate limiting by installation)
+  const installId = req.headers['x-installation-id'];
+  if (!installId) {
+    return res.status(403).json({ error: 'Missing installation ID. Update your extension.' });
   }
 
   // Daily cost cap

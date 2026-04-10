@@ -4,7 +4,7 @@
   "version": "3.0.0",
   "description": "Ask AI about any GitHub repo and install with one click. Claude Code, Cursor, Codex & more.",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
-  "host_permissions": ["https://api.anthropic.com/*", "https://vercel-nu-wheat.vercel.app/*", "https://api.github.com/*"],
+  "host_permissions": ["https://api.anthropic.com/v1/messages", "https://vercel-nu-wheat.vercel.app/api/chat", "https://api.github.com/repos/*", "https://smile-ai-proxy.thegreatgatsby456.workers.dev/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },

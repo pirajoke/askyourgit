@@ -185,7 +185,11 @@ toolModal.addEventListener('click', (e) => {
   if (e.target === toolModal) closeToolModal();
 });
 
-// Load saved settings
+// Load saved settings (API key from local, rest from sync)
+chrome.storage.local.get({ claudeApiKey: '' }, (localData) => {
+  claudeApiKeyInput.value = localData.claudeApiKey;
+});
+
 chrome.storage.sync.get({
   defaultClient: '',
   oneClick: false,
@@ -194,7 +198,6 @@ chrome.storage.sync.get({
   emojiPack: 'animals',
   shareTemplate: '',
   terminalApp: 'auto',
-  claudeApiKey: '',
   nftStats: { total: 0, tiers: {}, history: [] },
   smileStats: { summaries: 0, chats: 0, installs: 0, repos: [] },
 }, (data) => {
@@ -213,7 +216,6 @@ chrome.storage.sync.get({
   emojiPackSelect.value = data.emojiPack;
   shareTemplateInput.value = data.shareTemplate;
   terminalAppSelect.value = data.terminalApp;
-  claudeApiKeyInput.value = data.claudeApiKey;
   updateOneClickState();
   renderStats(data.nftStats);
   renderHistory(data.nftStats.history);
@@ -255,7 +257,7 @@ terminalAppSelect.addEventListener('change', () => {
 });
 
 claudeApiKeyInput.addEventListener('input', () => {
-  chrome.storage.sync.set({ claudeApiKey: claudeApiKeyInput.value.trim() });
+  chrome.storage.local.set({ claudeApiKey: claudeApiKeyInput.value.trim() });
 });
 
 function updateOneClickState() {

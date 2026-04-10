@@ -1,7 +1,16 @@
 // --- AI Proxy ---
 
 const PROXY_URL = 'https://vercel-nu-wheat.vercel.app/api/chat';
-const SMILE_TOKEN = 'smile-2024-secret';
+
+// --- Installation ID (unique per install, used for rate limiting) ---
+
+async function getInstallationId() {
+  const data = await chrome.storage.local.get({ installationId: '' });
+  if (data.installationId) return data.installationId;
+  const id = crypto.randomUUID();
+  await chrome.storage.local.set({ installationId: id });
+  return id;
+}
 
 // --- Analytics (serialized to prevent race conditions) ---
 
@@ -50,7 +59,8 @@ const AI_MODELS = {
 };
 
 async function callAI({ messages, system, max_tokens = 512, model = 'haiku' }) {
-  const { claudeApiKey } = await chrome.storage.sync.get({ claudeApiKey: '' });
+  // API key stored locally only (not synced across devices for security)
+  const { claudeApiKey } = await chrome.storage.local.get({ claudeApiKey: '' });
   const modelConfig = AI_MODELS[model] || AI_MODELS.haiku;
 
   // Premium models require user's own key
@@ -66,11 +76,12 @@ async function callAI({ messages, system, max_tokens = 512, model = 'haiku' }) {
     const proxyBody = { messages, max_tokens };
     if (system) proxyBody.system = system;
 
+    const installId = await getInstallationId();
     const resp = await fetch(PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-smile-token': SMILE_TOKEN,
+        'x-installation-id': installId,
       },
       body: JSON.stringify(proxyBody),
     });
@@ -320,7 +331,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === 'get-models') {
     (async () => {
-      const { claudeApiKey } = await chrome.storage.sync.get({ claudeApiKey: '' });
+      const { claudeApiKey } = await chrome.storage.local.get({ claudeApiKey: '' });
       const models = Object.entries(AI_MODELS).map(([key, cfg]) => ({
         id: key,
         label: cfg.label,
@@ -384,8 +395,17 @@ chrome.runtime.onStartup.addListener(() => {
   });
 });
 
-// Also set on install/update
-chrome.runtime.onInstalled.addListener(() => {
+// On install/update: migrate API key from sync→local, generate installation ID
+chrome.runtime.onInstalled.addListener(async () => {
+  // Migrate API key from sync to local (one-time)
+  const syncData = await chrome.storage.sync.get({ claudeApiKey: '' });
+  if (syncData.claudeApiKey) {
+    await chrome.storage.local.set({ claudeApiKey: syncData.claudeApiKey });
+    await chrome.storage.sync.remove('claudeApiKey');
+  }
+  // Ensure installation ID exists
+  await getInstallationId();
+  // Badge from NFT stats
   chrome.storage.sync.get({ nftStats: { history: [] } }, (data) => {
     if (data.nftStats.history.length > 0) {
       chrome.action.setBadgeText({ text: data.nftStats.history[0].emoji });
