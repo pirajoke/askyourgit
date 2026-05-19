@@ -35,10 +35,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        let extensionURL: URL
+        do {
+            extensionURL = try installExtensionPayload()
+        } catch {
+            show("Install failed", "Could not prepare the Chrome extension folder.\n\n\(error.localizedDescription)")
+            return
+        }
+
         let installer = "\(resourcePath)/native-host/install.sh"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [installer]
+        process.environment = ProcessInfo.processInfo.environment.merging([
+            "ASKYOURGIT_EXTENSION_DIR": extensionURL.path,
+        ]) { _, new in new }
 
         let pipe = Pipe()
         process.standardOutput = pipe
@@ -50,7 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let output = String(data: data, encoding: .utf8) ?? ""
             if process.terminationStatus == 0 {
-                show("Bridge installed", "Ask your GIT can now send commands to your local tools.\n\nReload the Chrome extension before testing.")
+                show("Bridge installed", "Ask your GIT can now send commands to your local tools.\n\nChrome extension folder:\n\(extensionURL.path)\n\nOpen chrome://extensions, enable Developer mode, then Load unpacked and select this folder.")
             } else {
                 show("Install failed", output.isEmpty ? "The bridge installer exited with an error." : output)
             }
@@ -72,9 +83,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openExtensionFolder() {
-        let appURL = Bundle.main.bundleURL
-        let packageURL = appURL.deletingLastPathComponent()
-        NSWorkspace.shared.activateFileViewerSelecting([packageURL])
+        do {
+            let extensionURL = try installExtensionPayload()
+            NSWorkspace.shared.activateFileViewerSelecting([extensionURL])
+        } catch {
+            show("Open failed", "Could not prepare the extension folder.\n\n\(error.localizedDescription)")
+        }
     }
 
     @objc private func quit() {
@@ -121,6 +135,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             host == "gitlab.com" ||
             host == "bitbucket.org"
         )
+    }
+
+    private func installedExtensionURL() -> URL {
+        let supportRoot = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Ask your GIT", isDirectory: true)
+        return supportRoot.appendingPathComponent("extension", isDirectory: true)
+    }
+
+    @discardableResult
+    private func installExtensionPayload() throws -> URL {
+        guard let sourceURL = Bundle.main.resourceURL?.appendingPathComponent("extension", isDirectory: true) else {
+            throw NSError(domain: "AskYourGIT", code: 1, userInfo: [NSLocalizedDescriptionKey: "Bundled extension resources are missing."])
+        }
+
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: sourceURL.path) else {
+            throw NSError(domain: "AskYourGIT", code: 2, userInfo: [NSLocalizedDescriptionKey: "Bundled extension folder was not found."])
+        }
+
+        let destinationURL = installedExtensionURL()
+        try fm.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if fm.fileExists(atPath: destinationURL.path) {
+            try fm.removeItem(at: destinationURL)
+        }
+        try fm.copyItem(at: sourceURL, to: destinationURL)
+        return destinationURL
     }
 
     private func show(_ title: String, _ message: String) {

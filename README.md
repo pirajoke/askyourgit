@@ -86,10 +86,10 @@ Or install manually:
 
 ### Manual Install
 
-1. [**Download ZIP**](https://pirajoke.github.io/askyourgit/dist/askyourgit-prototype.zip) from the prototype download site
-2. Unzip the folder
+1. [**Download DMG**](https://pirajoke.github.io/askyourgit/dist/askyourgit-macos.dmg) from the prototype download site
+2. Drag **Ask your GIT Companion.app** to Applications and open it once
 3. Go to `chrome://extensions` → Enable **Developer mode**
-4. Click **"Load unpacked"** → select the unzipped folder
+4. Click **"Load unpacked"** → select `~/Library/Application Support/Ask your GIT/extension`
 5. Visit any GitHub repo — the button appears next to the Code button
 
 ### Prototype Package
@@ -101,9 +101,9 @@ chmod +x scripts/build-prototype-package.sh
 ./scripts/build-prototype-package.sh
 ```
 
-The zip is written to `dist/askyourgit-prototype.zip`.
+The zip is written to `dist/askyourgit-prototype.zip`, and the macOS installer image is written to `dist/askyourgit-macos.dmg`.
 
-For the demo, unzip it and double-click `Ask your GIT Companion.app`; then load the unzipped folder as an unpacked Chrome extension. If macOS blocks the unsigned app, right-click → Open, or run `install-companion.command`.
+For the demo, open the DMG, drag `Ask your GIT Companion.app` to Applications, then launch it. If macOS blocks the unsigned app, right-click → Open.
 
 ---
 

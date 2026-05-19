@@ -1,5 +1,6 @@
 proxy/.wrangler/
 dist/askyourgit-prototype/
+dist/askyourgit-dmg-root/
 **/__pycache__/
 *.pyc
 .DS_Store

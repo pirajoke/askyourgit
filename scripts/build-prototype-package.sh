@@ -5,29 +5,43 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 STAGE="$DIST_DIR/askyourgit-prototype"
 ZIP="$DIST_DIR/askyourgit-prototype.zip"
+DMG="$DIST_DIR/askyourgit-macos.dmg"
+DMG_ROOT="$DIST_DIR/askyourgit-dmg-root"
 
-rm -rf "$STAGE" "$ZIP"
+rm -rf "$STAGE" "$ZIP" "$DMG" "$DMG_ROOT"
 mkdir -p "$STAGE"
 
-for item in \
-  manifest.json \
-  background.js \
-  content.js \
-  content.css \
-  popup.html \
-  popup.js \
-  popup.css \
-  README.md \
-  privacy-policy.html \
-  index.html \
-  icons \
-  native-host \
-  assets \
-  store; do
-  if [ -e "$ROOT_DIR/$item" ]; then
-    cp -R "$ROOT_DIR/$item" "$STAGE/$item"
+EXTENSION_ITEMS=(
+  manifest.json
+  background.js
+  content.js
+  content.css
+  popup.html
+  popup.js
+  popup.css
+  README.md
+  privacy-policy.html
+  index.html
+  icons
+  native-host
+  assets
+)
+
+copy_extension_payload() {
+  local target="$1"
+  mkdir -p "$target"
+  for item in "${EXTENSION_ITEMS[@]}"; do
+    if [ -e "$ROOT_DIR/$item" ]; then
+      cp -R "$ROOT_DIR/$item" "$target/$item"
+    fi
+  done
+  if [ -f "$ROOT_DIR/store/listing.md" ]; then
+    mkdir -p "$target/store"
+    cp "$ROOT_DIR/store/listing.md" "$target/store/listing.md"
   fi
-done
+}
+
+copy_extension_payload "$STAGE"
 
 cat > "$STAGE/INSTALL-PROTOTYPE.md" <<'DOC'
 # Ask your GIT Prototype Install
@@ -96,15 +110,20 @@ cat > "$APP_MACOS/AskYourGITCompanion" <<'SH'
 #!/bin/bash
 set -e
 APP_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
-PACKAGE_ROOT="$(cd "$APP_MACOS_DIR/../../.." && pwd)"
-bash "$PACKAGE_ROOT/native-host/install.sh"
+APP_RES_DIR="$(cd "$APP_MACOS_DIR/../Resources" && pwd)"
+EXT_DST="$HOME/Library/Application Support/Ask your GIT/extension"
+rm -rf "$EXT_DST"
+mkdir -p "$(dirname "$EXT_DST")"
+cp -R "$APP_RES_DIR/extension" "$EXT_DST"
+ASKYOURGIT_EXTENSION_DIR="$EXT_DST" bash "$APP_RES_DIR/native-host/install.sh"
 if [ "${ASKYOURGIT_NO_DIALOG:-}" != "1" ]; then
-  osascript -e 'display dialog "Ask your GIT Companion is installed.\n\nNext: open chrome://extensions, enable Developer mode, then Load unpacked and select the prototype folder." buttons {"OK"} default button "OK" with title "Ask your GIT Companion"'
+  osascript -e 'display dialog "Ask your GIT Companion is installed.\n\nNext: open chrome://extensions, enable Developer mode, then Load unpacked and select:\n~/Library/Application Support/Ask your GIT/extension" buttons {"OK"} default button "OK" with title "Ask your GIT Companion"'
 fi
 SH
 chmod +x "$APP_MACOS/AskYourGITCompanion"
 
 cp -R "$ROOT_DIR/native-host" "$APP_RES/native-host"
+copy_extension_payload "$APP_RES/extension"
 find "$APP_RES/native-host" -type d -name "__pycache__" -prune -exec rm -rf {} +
 
 if command -v swiftc >/dev/null 2>&1 && [ -f "$ROOT_DIR/macos-companion/AskYourGITCompanion.swift" ]; then
@@ -117,6 +136,25 @@ if command -v sips >/dev/null 2>&1 && [ -f "$ROOT_DIR/icons/icon128.png" ]; then
   sips -s format icns "$ROOT_DIR/icons/icon128.png" --out "$APP_RES/AppIcon.icns" >/dev/null
 fi
 
+if command -v hdiutil >/dev/null 2>&1; then
+  mkdir -p "$DMG_ROOT"
+  cp -R "$APP_DIR" "$DMG_ROOT/Ask your GIT Companion.app"
+  ln -s /Applications "$DMG_ROOT/Applications"
+  cat > "$DMG_ROOT/README.txt" <<'DOC'
+Ask your GIT
+
+1. Drag Ask your GIT Companion.app to Applications.
+2. Open it once.
+3. In Chrome, open chrome://extensions and enable Developer mode.
+4. Click Load unpacked and select:
+   ~/Library/Application Support/Ask your GIT/extension
+
+Chrome Web Store publishing will remove the Load unpacked step later.
+DOC
+  hdiutil create -volname "Ask your GIT" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG" >/dev/null
+  rm -rf "$DMG_ROOT"
+fi
+
 find "$STAGE" -name ".DS_Store" -delete
 find "$STAGE" -type d -name "__pycache__" -prune -exec rm -rf {} +
 (
@@ -125,3 +163,6 @@ find "$STAGE" -type d -name "__pycache__" -prune -exec rm -rf {} +
 )
 
 echo "$ZIP"
+if [ -f "$DMG" ]; then
+  echo "$DMG"
+fi

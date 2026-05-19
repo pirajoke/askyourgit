@@ -2,7 +2,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-EXT_DIR="$(dirname "$SCRIPT_DIR")"
+DEFAULT_EXT_DIR="$(dirname "$SCRIPT_DIR")"
+EXT_DIR="${ASKYOURGIT_EXTENSION_DIR:-$DEFAULT_EXT_DIR}"
 HOST_NAME="com.smile.ai_install"
 BRIDGE_SRC="$SCRIPT_DIR/smile-bridge.py"
 BRIDGE_DST="$HOME/.local/bin/smile-bridge"
