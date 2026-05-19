@@ -3,279 +3,838 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ask your GIT — AI for any repo</title>
-  <meta name="description" content="Ask AI about any GitHub repo and install with one click. Chrome extension for developers.">
-  <meta property="og:title" content="Ask your GIT — AI for any repo">
-  <meta property="og:description" content="Ask AI about any GitHub repo. Get instant summaries, chat about the code, install with one click.">
+  <title>Ask your GIT — Repo intelligence on your desktop</title>
+  <meta name="description" content="Download Ask your GIT for macOS. A desktop companion and browser extension that analyzes GitHub, GitLab, and Bitbucket repositories from your browser.">
+  <meta property="og:title" content="Ask your GIT — Repo intelligence on your desktop">
+  <meta property="og:description" content="A menu-bar companion and browser extension for asking questions about any open repository.">
   <meta property="og:image" content="https://pirajoke.github.io/askyourgit/assets/og-image.png">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pirajoke.github.io/askyourgit/">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Ask your GIT — AI for any repo">
-  <meta name="twitter:description" content="Ask AI about any GitHub repo. Get instant summaries, chat about the code, install with one click.">
+  <meta name="twitter:title" content="Ask your GIT — Repo intelligence on your desktop">
+  <meta name="twitter:description" content="Download a local companion that connects your browser repo pages to AI coding tools.">
   <meta name="twitter:image" content="https://pirajoke.github.io/askyourgit/assets/og-image.png">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      line-height: 1.6;
+    :root {
+      --bg: #090b10;
+      --panel: #10141d;
+      --panel-2: #151b26;
+      --line: #273041;
+      --text: #f4f7fb;
+      --muted: #9aa6b5;
+      --soft: #c7d0dd;
+      --violet: #7c3aed;
+      --blue: #38bdf8;
+      --green: #35d07f;
+      --amber: #f6b94b;
+      --danger: #ff6b6b;
+      --radius: 8px;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
     }
-    a { color: #7c3aed; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    img { display: block; max-width: 100%; }
+
+    .shell {
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(56, 189, 248, 0.12), transparent 32rem),
+        radial-gradient(circle at 50% -10%, rgba(124, 58, 237, 0.18), transparent 34rem),
+        var(--bg);
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(9, 11, 16, 0.76);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-inner {
+      width: min(1120px, calc(100% - 32px));
+      height: 64px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .brand img {
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 720;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      white-space: nowrap;
+    }
+
+    .button:hover { transform: translateY(-1px); }
+
+    .button-primary {
+      color: #06080d;
+      background: linear-gradient(135deg, #f4f7fb, #9ee7ff);
+      box-shadow: 0 12px 30px rgba(56, 189, 248, 0.22);
+    }
+
+    .button-secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
 
     .hero {
-      text-align: center;
-      padding: 80px 20px 60px;
-      max-width: 700px;
+      width: min(1120px, calc(100% - 32px));
       margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.03fr) minmax(360px, 0.97fr);
+      gap: 44px;
+      align-items: center;
+      padding: 82px 0 54px;
     }
-    .hero-icon {
-      font-size: 64px;
-      margin-bottom: 20px;
-    }
-    .hero h1 {
-      font-size: 48px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      margin-bottom: 12px;
-      background: linear-gradient(135deg, #7c3aed, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero .subtitle {
-      font-size: 20px;
-      color: #8b949e;
-      margin-bottom: 32px;
-    }
-    .cta-row {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .btn {
+
+    .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 14px 28px;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(124,58,237,0.3); }
-    .btn-primary {
-      background: #7c3aed;
-      color: white;
-    }
-    .btn-secondary {
-      background: #21262d;
-      color: #e6edf3;
-      border: 1px solid #30363d;
+      margin-bottom: 18px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      font-weight: 650;
     }
 
-    .demo {
-      max-width: 800px;
-      margin: 0 auto 60px;
-      padding: 0 20px;
-      text-align: center;
-    }
-    .demo-placeholder {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 60px 20px;
-      color: #8b949e;
-      font-size: 14px;
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(53, 208, 127, 0.12);
     }
 
-    .features {
-      max-width: 900px;
-      margin: 0 auto 80px;
-      padding: 0 20px;
-    }
-    .features h2 {
-      text-align: center;
-      font-size: 32px;
-      margin-bottom: 40px;
-    }
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 24px;
-    }
-    .feature-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 24px;
-    }
-    .feature-card .icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-    }
-    .feature-card h3 {
-      font-size: 18px;
-      margin-bottom: 8px;
-    }
-    .feature-card p {
-      color: #8b949e;
-      font-size: 14px;
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(46px, 8vw, 92px);
+      line-height: 0.95;
+      letter-spacing: 0;
+      font-weight: 850;
     }
 
-    .tools {
-      max-width: 700px;
-      margin: 0 auto 80px;
-      padding: 0 20px;
-      text-align: center;
+    .lead {
+      max-width: 640px;
+      margin: 24px 0 0;
+      color: var(--soft);
+      font-size: clamp(18px, 2.4vw, 23px);
+      line-height: 1.45;
     }
-    .tools h2 {
-      font-size: 32px;
-      margin-bottom: 16px;
-    }
-    .tools p {
-      color: #8b949e;
-      margin-bottom: 24px;
-    }
-    .tool-badges {
+
+    .hero-actions {
       display: flex;
-      gap: 12px;
-      justify-content: center;
       flex-wrap: wrap;
-    }
-    .tool-badge {
-      background: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 500;
+      gap: 12px;
+      margin-top: 30px;
     }
 
-    .install {
-      text-align: center;
-      padding: 60px 20px 80px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    .install h2 {
-      font-size: 28px;
-      margin-bottom: 12px;
-    }
-    .install p {
-      color: #8b949e;
-      margin-bottom: 24px;
-    }
-    .install code {
-      display: block;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-family: 'SF Mono', Monaco, monospace;
-      font-size: 14px;
-      color: #e6edf3;
-      margin-bottom: 24px;
-    }
-
-    footer {
-      text-align: center;
-      padding: 40px 20px;
-      border-top: 1px solid #21262d;
-      color: #8b949e;
+    .download-note {
+      margin-top: 14px;
+      color: var(--muted);
       font-size: 13px;
     }
-    footer a { color: #8b949e; }
-    footer a:hover { color: #e6edf3; }
+
+    .product-stage {
+      position: relative;
+      min-height: 540px;
+    }
+
+    .monitor {
+      position: absolute;
+      inset: 38px 0 auto;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #d7dde6;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+    }
+
+    .menu-bar {
+      height: 32px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #151922;
+      background: rgba(248, 250, 252, 0.92);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .menu-icons {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .menu-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      display: grid;
+      place-items: center;
+      background: #111827;
+      color: #fff;
+      font-size: 11px;
+    }
+
+    .browser {
+      margin: 26px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0d1117;
+      border: 1px solid #cbd5e1;
+    }
+
+    .browser-top {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #d6deea;
+    }
+
+    .traffic {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #ff5f57;
+    }
+
+    .traffic:nth-child(2) { background: #ffbd2e; }
+    .traffic:nth-child(3) { background: #28c840; }
+
+    .url-pill {
+      flex: 1;
+      min-width: 0;
+      height: 24px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #475569;
+      background: #e8eef6;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .repo-view {
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1fr 170px;
+      gap: 22px;
+      min-height: 360px;
+    }
+
+    .repo-title {
+      color: #e6edf3;
+      font-size: 24px;
+      font-weight: 780;
+      margin-bottom: 18px;
+    }
+
+    .repo-files {
+      display: grid;
+      gap: 9px;
+    }
+
+    .file-row {
+      height: 34px;
+      border-radius: 7px;
+      background: #161b22;
+      border: 1px solid #30363d;
+    }
+
+    .repo-side {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.13);
+      color: #8bdcff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ask-panel {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: min(410px, calc(100% - 32px));
+      border-radius: 8px;
+      background: #111722;
+      border: 1px solid #334155;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+      overflow: hidden;
+    }
+
+    .ask-head {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      color: var(--soft);
+      border-bottom: 1px solid #263244;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .ask-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .bubble {
+      max-width: 88%;
+      padding: 11px 13px;
+      border-radius: 8px;
+      color: #e6edf3;
+      background: #202938;
+      border: 1px solid #334155;
+      font-size: 13px;
+    }
+
+    .bubble.user {
+      justify-self: end;
+      background: #6d44d8;
+      border-color: #8b5cf6;
+    }
+
+    .input-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 40px;
+      padding: 0 0 0 12px;
+      border-radius: 8px;
+      color: #94a3b8;
+      background: #0b1018;
+      border: 1px solid #334155;
+      font-size: 13px;
+    }
+
+    .send {
+      height: 40px;
+      width: 48px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--violet);
+      border-radius: 0 8px 8px 0;
+      font-weight: 900;
+    }
+
+    .section {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .section-inner {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 76px 0;
+    }
+
+    .section-kicker {
+      margin-bottom: 10px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 780;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 54px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .section-lead {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: var(--soft);
+      font-size: 18px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .feature {
+      min-height: 190px;
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius);
+      background: rgba(16, 20, 29, 0.78);
+    }
+
+    .feature-mark {
+      width: 34px;
+      height: 34px;
+      margin-bottom: 18px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #061016;
+      background: var(--green);
+      font-weight: 900;
+    }
+
+    .feature:nth-child(2) .feature-mark { background: var(--blue); }
+    .feature:nth-child(3) .feature-mark { background: var(--amber); }
+    .feature:nth-child(4) .feature-mark { background: #a78bfa; }
+    .feature:nth-child(5) .feature-mark { background: #fda4af; }
+    .feature:nth-child(6) .feature-mark { background: #93c5fd; }
+
+    .feature h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .download-band {
+      background: #edf2f7;
+      color: #10141d;
+    }
+
+    .download-band .section-inner {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 34px;
+      align-items: center;
+    }
+
+    .download-band .section-kicker { color: #2563eb; }
+    .download-band .section-lead { color: #465466; }
+
+    .download-card {
+      padding: 22px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid #d8e0ea;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+    }
+
+    .app-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .app-row img {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+    }
+
+    .app-row strong {
+      display: block;
+      font-size: 18px;
+    }
+
+    .app-row span {
+      display: block;
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .download-card .button {
+      width: 100%;
+      background: #111827;
+      color: #fff;
+      min-height: 50px;
+    }
+
+    .checksum {
+      margin-top: 14px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .step {
+      padding: 18px;
+      border: 1px solid #d8e0ea;
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      margin-bottom: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #fff;
+      background: #111827;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .step h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .step p {
+      margin: 0;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .final-cta {
+      text-align: center;
+    }
+
+    .final-cta .section-inner {
+      padding-bottom: 88px;
+    }
+
+    .footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .footer-inner {
+      width: min(1120px, calc(100% - 32px));
+      min-height: 80px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .download-band .section-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .product-stage {
+        min-height: 500px;
+      }
+
+      .feature-grid,
+      .steps {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .nav-links { display: none; }
+      .hero { padding-top: 52px; }
+      .hero-actions .button { width: 100%; }
+      .product-stage { min-height: 560px; }
+      .repo-view { grid-template-columns: 1fr; }
+      .repo-side { display: none; }
+      .ask-panel { left: 12px; right: 12px; width: auto; }
+      .feature-grid,
+      .steps { grid-template-columns: 1fr; }
+      .footer-inner { flex-direction: column; justify-content: center; text-align: center; }
+    }
   </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="hero-icon">&#9889;</div>
-    <h1>Ask your GIT</h1>
-    <p class="subtitle">Ask AI about any GitHub repo. Get instant summaries, chat about the code, and install with one click.</p>
-    <div class="cta-row">
-      <a href="https://chromewebstore.google.com/detail/pbfofhbacoeelkokidbdcljfmhakpngh" class="btn btn-primary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm0 4.8a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4zm0 2.4a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6z"/></svg>
-        Add to Chrome
-      </a>
-      <a href="https://github.com/pirajoke/askyourgit" class="btn btn-secondary">
-        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub
-      </a>
-    </div>
-  </div>
+  <div class="shell">
+    <header class="nav">
+      <div class="nav-inner">
+        <a href="#" class="brand" aria-label="Ask your GIT home">
+          <img src="icons/icon128.png" alt="">
+          <span>Ask your GIT</span>
+        </a>
+        <nav class="nav-links" aria-label="Main navigation">
+          <a href="#features">Features</a>
+          <a href="#download">Download</a>
+          <a href="privacy-policy.html">Privacy</a>
+          <a href="https://github.com/pirajoke/askyourgit">GitHub</a>
+        </nav>
+      </div>
+    </header>
 
-  <div class="demo">
-    <div class="demo-placeholder">
-      Demo GIF coming soon — record a 30-second walkthrough of the extension in action
-    </div>
-  </div>
+    <main>
+      <section class="hero">
+        <div>
+          <div class="eyebrow"><span class="status-dot"></span> macOS companion prototype ready</div>
+          <h1>Ask any repo from your desktop.</h1>
+          <p class="lead">Ask your GIT adds a local menu-bar companion to your computer and a browser extension to your repo pages. Open GitHub, GitLab, or Bitbucket, ask what the code does, then hand it to Claude Code, Cursor, or Codex.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="dist/askyourgit-prototype.zip" download="Ask-your-GIT-macOS-prototype.zip">
+              Download Ask your GIT
+            </a>
+            <a class="button button-secondary" href="#how">See how it works</a>
+          </div>
+          <p class="download-note">Prototype for macOS. Includes the menu-bar companion app, Chrome extension files, and local native bridge.</p>
+        </div>
 
-  <div class="features">
-    <h2>Features</h2>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="icon">&#129302;</div>
-        <h3>AI Quick Summary</h3>
-        <p>Instant AI-generated overview of any repo. What it does, key features, how to start. Free, no API key needed.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">&#128172;</div>
-        <h3>Ask AI Chat</h3>
-        <p>Interactive chat about any repo. Ask about setup, architecture, dependencies — without reading the code.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">&#9889;</div>
-        <h3>One-Click Install</h3>
-        <p>Clone and set up any project with Claude Code, Cursor, Codex CLI, or your own custom tools.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">&#128269;</div>
-        <h3>Smart Stack Detection</h3>
-        <p>Automatically detects Node.js, Python, Rust, Go, Docker, Ruby, Java and generates the right setup commands.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">&#128737;</div>
-        <h3>Trust Info</h3>
-        <p>See stars, license, and last commit before installing. Make informed decisions at a glance.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">&#128274;</div>
-        <h3>Privacy First</h3>
-        <p>Zero tracking, zero analytics, zero data collection. Fully open source. MIT licensed.</p>
-      </div>
-    </div>
-  </div>
+        <div class="product-stage" aria-label="Ask your GIT product preview">
+          <div class="monitor">
+            <div class="menu-bar">
+              <span>GitHub</span>
+              <div class="menu-icons">
+                <span>Wi-Fi</span>
+                <span class="menu-icon">git</span>
+                <span>10:42</span>
+              </div>
+            </div>
+            <div class="browser">
+              <div class="browser-top">
+                <span class="traffic"></span>
+                <span class="traffic"></span>
+                <span class="traffic"></span>
+                <span class="url-pill">github.com/pirajoke/askyourgit</span>
+              </div>
+              <div class="repo-view">
+                <div>
+                  <div class="repo-title">pirajoke / askyourgit</div>
+                  <div class="repo-files">
+                    <span class="file-row"></span>
+                    <span class="file-row"></span>
+                    <span class="file-row"></span>
+                    <span class="file-row"></span>
+                    <span class="file-row"></span>
+                  </div>
+                </div>
+                <aside class="repo-side">
+                  <strong>About</strong>
+                  <p>AI for any repo. Chat, summarize, install with one click.</p>
+                  <div class="tag-row">
+                    <span class="tag">github</span>
+                    <span class="tag">codex</span>
+                    <span class="tag">claude</span>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
 
-  <div class="tools">
-    <h2>Works with your tools</h2>
-    <p>25+ presets included. Add your own custom tools.</p>
-    <div class="tool-badges">
-      <span class="tool-badge">Claude Code</span>
-      <span class="tool-badge">Cursor</span>
-      <span class="tool-badge">Codex CLI</span>
-      <span class="tool-badge">Windsurf</span>
-      <span class="tool-badge">Zed</span>
-      <span class="tool-badge">VS Code</span>
-      <span class="tool-badge">JetBrains</span>
-      <span class="tool-badge">Terminal</span>
-    </div>
-  </div>
+          <div class="ask-panel">
+            <div class="ask-head">
+              <span>Ask your GIT</span>
+              <span>Haiku / Local</span>
+            </div>
+            <div class="ask-body">
+              <div class="bubble">Ready. I analyzed README, topics, languages, and root files.</div>
+              <div class="bubble user">What is this repo and how do I run it?</div>
+              <div class="bubble">It is a browser extension plus macOS companion. It explains the repo first, then sends setup to your local AI coding tool.</div>
+              <div class="input-bar">
+                <span>Ask about this repo...</span>
+                <span class="send">→</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  <div class="install">
-    <h2>Install manually</h2>
-    <p>Download, unzip, load into Chrome.</p>
-    <code>chrome://extensions &rarr; Developer mode &rarr; Load unpacked</code>
-    <a href="https://github.com/pirajoke/askyourgit/releases/latest/download/askyourgit-v3.0.0.zip" class="btn btn-primary">Download Latest Release</a>
-  </div>
+      <section class="section" id="features">
+        <div class="section-inner">
+          <div class="section-kicker">21st-style component system</div>
+          <h2>One product, two surfaces.</h2>
+          <p class="section-lead">The website uses a modern component layout: hero, feature cards, product mockup, download CTA, and steps. The app itself combines a menu-bar companion with an injected repo assistant inside your browser.</p>
+          <div class="feature-grid">
+            <article class="feature">
+              <div class="feature-mark">1</div>
+              <h3>Menu-bar companion</h3>
+              <p>A small macOS app stays in the top bar, installs the browser bridge, and detects current repository pages.</p>
+            </article>
+            <article class="feature">
+              <div class="feature-mark">2</div>
+              <h3>Repo page assistant</h3>
+              <p>The browser extension adds Ask your GIT to GitHub, GitLab, and Bitbucket repository pages.</p>
+            </article>
+            <article class="feature">
+              <div class="feature-mark">3</div>
+              <h3>Chat before setup</h3>
+              <p>Ask what the repo does, which stack it uses, and how to run it before touching your terminal.</p>
+            </article>
+            <article class="feature">
+              <div class="feature-mark">4</div>
+              <h3>Local tool handoff</h3>
+              <p>Send install commands to Claude Code, Cursor, Codex, Terminal, or your own custom tools.</p>
+            </article>
+            <article class="feature">
+              <div class="feature-mark">5</div>
+              <h3>Works without a key</h3>
+              <p>The prototype includes local fallback answers when hosted AI is unavailable or no API key is configured.</p>
+            </article>
+            <article class="feature">
+              <div class="feature-mark">6</div>
+              <h3>Downloadable demo</h3>
+              <p>The macOS bundle, icon, native bridge, extension folder, and installer script are packaged together.</p>
+            </article>
+          </div>
+        </div>
+      </section>
 
-  <footer>
-    <p>&copy; 2025-2026 Maxim Grachev &middot; <a href="https://github.com/pirajoke/askyourgit">GitHub</a> &middot; <a href="privacy-policy.html">Privacy Policy</a> &middot; MIT License</p>
-  </footer>
+      <section class="download-band" id="download">
+        <div class="section-inner">
+          <div>
+            <div class="section-kicker">Download</div>
+            <h2>Install Ask your GIT on this computer.</h2>
+            <p class="section-lead">Download the prototype package, open the companion app, then load the bundled extension into Chrome. The companion will appear in the macOS menu bar like a lightweight developer utility.</p>
+          </div>
+          <aside class="download-card">
+            <div class="app-row">
+              <img src="icons/icon128.png" alt="">
+              <div>
+                <strong>Ask your GIT</strong>
+                <span>macOS companion + browser extension</span>
+              </div>
+            </div>
+            <a class="button" href="dist/askyourgit-prototype.zip" download="Ask-your-GIT-macOS-prototype.zip">Download app package</a>
+            <p class="checksum">Prototype zip. Unzip, launch the app, then load the included extension folder.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="download-band" id="how">
+        <div class="section-inner" style="display:block">
+          <div class="section-kicker">Setup</div>
+          <h2>Four steps to the demo.</h2>
+          <div class="steps">
+            <article class="step">
+              <div class="step-number">1</div>
+              <h3>Download</h3>
+              <p>Get the Ask your GIT prototype zip from this site.</p>
+            </article>
+            <article class="step">
+              <div class="step-number">2</div>
+              <h3>Launch app</h3>
+              <p>Open Ask your GIT Companion.app and keep its icon in the menu bar.</p>
+            </article>
+            <article class="step">
+              <div class="step-number">3</div>
+              <h3>Load extension</h3>
+              <p>Open chrome://extensions, enable Developer mode, and load the unzipped folder.</p>
+            </article>
+            <article class="step">
+              <div class="step-number">4</div>
+              <h3>Ask a repo</h3>
+              <p>Open any repo and use Ask AI to understand it before installing.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section final-cta">
+        <div class="section-inner">
+          <div class="section-kicker">Ready</div>
+          <h2>Turn any repo page into a local AI workflow.</h2>
+          <p class="section-lead" style="margin-left:auto;margin-right:auto">Download the prototype and show the menu-bar app, the browser button, and the repo chat in one flow.</p>
+          <div class="hero-actions" style="justify-content:center">
+            <a class="button button-primary" href="dist/askyourgit-prototype.zip" download="Ask-your-GIT-macOS-prototype.zip">Download Ask your GIT</a>
+            <a class="button button-secondary" href="https://github.com/pirajoke/askyourgit">View source</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>© 2026 Maxim Grachev. Ask your GIT prototype.</span>
+        <div class="footer-links">
+          <a href="privacy-policy.html">Privacy</a>
+          <a href="https://github.com/pirajoke/askyourgit">GitHub</a>
+        </div>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>

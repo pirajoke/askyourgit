@@ -232,6 +232,74 @@ h1 {
   margin-bottom: 12px;
 }
 
+.section-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strong-label {
+  color: #e6edf3;
+  margin-bottom: 2px;
+}
+
+.companion-card {
+  padding: 12px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+}
+
+.companion-card .hint {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.install-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.install-command-row code {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #8b949e;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.small-btn {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #21262d;
+  color: #e6edf3;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
+.small-btn:hover {
+  border-color: #8b5cf6;
+}
+
+.one-click-row {
+  justify-content: space-between;
+  margin-top: 10px;
+  color: #8b949e;
+  font-size: 13px;
+}
+
 .label {
   display: block;
   font-size: 13px;

@@ -1,6 +1,6 @@
 (() => {
-  const BUTTON_ID = 'ai-install-btn';
-  const DROPDOWN_ID = 'ai-install-dropdown';
+  const BUTTON_ID = 'askyourgit-btn';
+  const DROPDOWN_ID = 'askyourgit-dropdown';
 
   // --- Platform Detection ---
 
@@ -910,6 +910,7 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/\n• /g, '<br><span class="ai-install-chat-bullet">•</span> ')
         .replace(/\n\n/g, '<br><br>')
         .replace(/\n/g, '<br>');
     }
@@ -1343,7 +1344,7 @@
     const btn = document.createElement('button');
     btn.id = BUTTON_ID;
     btn.className = 'ai-install-btn';
-    btn.innerHTML = '<span class="ai-install-icon">⚡</span> Install with AI';
+    btn.innerHTML = '<span class="ai-install-icon">⚡</span> Ask your GIT';
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();

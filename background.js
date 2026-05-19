@@ -134,6 +134,66 @@ async function callDirectAPI({ messages, system, max_tokens, model, apiKey }) {
   }
 }
 
+function fallbackRepoAnswer({ question, repoName, repoContext }) {
+  const cleanContext = (repoContext || '')
+    .replace(/â€\S*/g, '')
+    .replace(/[^\S\r\n]+/g, ' ')
+    .trim();
+  const lower = `${question || ''}`.toLowerCase();
+  const about = cleanContext.match(/About:\s*(.*?)(?=\s(?:Topics|Stars|Forks|License|Primary language|Root files|Languages|README):|$)/i)?.[1]?.trim();
+  const topics = cleanContext.match(/Topics:\s*(.*?)(?=\s(?:Stars|Forks|License|Primary language|Root files|Languages|README):|$)/i)?.[1]?.trim();
+  const language = cleanContext.match(/Primary language:\s*(.*?)(?=\s(?:Root files|Languages|README):|$)/i)?.[1]?.trim();
+  const languages = cleanContext.match(/Languages:\s*(.*?)(?=\s(?:README):|$)/i)?.[1]?.trim();
+  const readme = cleanContext.match(/README:\s*(.*)$/i)?.[1]?.trim();
+
+  function byWords(text, limit = 260) {
+    if (!text) return '';
+    if (text.length <= limit) return text;
+    const clipped = text.slice(0, limit);
+    return `${clipped.slice(0, Math.max(0, clipped.lastIndexOf(' '))).trim()}...`;
+  }
+
+  function friendlyTopics(text) {
+    if (!text) return '';
+    return text
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 5)
+      .join(', ');
+  }
+
+  const lines = [];
+  lines.push(`🎯 **${repoName} is a repo assistant for developers.**`);
+
+  if (lower.includes('install') || lower.includes('setup') || lower.includes('run')) {
+    lines.push('It is built around a simple flow: open a repo, understand it quickly, then send an install/setup command to a local tool through the desktop companion.');
+    lines.push('For the demo: click **Ask your GIT**, ask a question, then choose **Claude Code**, **Cursor**, or **Codex** from the install menu.');
+  } else if (lower.includes('stack') || lower.includes('tech')) {
+    lines.push(`**Stack:** ${byWords(languages || language || 'JavaScript extension code with a native desktop companion.', 180)}`);
+    lines.push('The important part for the prototype is not the framework. It is the bridge between the browser page and the local machine.');
+  } else if (lower.includes('what') || lower.includes('about') || lower.includes('tell')) {
+    lines.push(about
+      ? byWords(about, 220)
+      : 'It reads the current GitHub/GitLab/Bitbucket repo page and turns it into a short, actionable developer briefing.');
+    lines.push('The desktop companion makes it feel like Krisp or Superwhisper: install a small local helper once, then the browser extension can talk to your computer.');
+  } else {
+    lines.push('It summarizes the repo, answers follow-up questions, and gives one-click handoff to local coding tools.');
+    lines.push('That means less README scanning and fewer manual setup steps during a hackathon or code review.');
+  }
+
+  const evidence = [];
+  if (friendlyTopics(topics)) evidence.push(`Repo tags: ${friendlyTopics(topics)}`);
+  if (language || languages) evidence.push(`Detected code: ${byWords(languages || language, 130)}`);
+  if (readme) evidence.push(`README: ${byWords(readme.replace(/^#\s*/, ''), 150)}`);
+  if (evidence.length) {
+    lines.push(`📌 **Signals from the page**\n${evidence.slice(0, 3).map((item) => `• ${item}`).join('\n')}`);
+  }
+
+  lines.push('⚙️ **Offline demo mode:** using local repo context because no API key is connected.');
+  return lines.join('\n\n');
+}
+
 // --- Command Execution Router ---
 
 const NM_HOST = 'com.smile.ai_install';
@@ -179,7 +239,7 @@ async function checkNativeBridge() {
     const result = await new Promise((resolve, reject) => {
       chrome.runtime.sendNativeMessage(
         NM_HOST,
-        { command: '', terminal: 'auto' },
+        { type: 'ping', terminal: 'auto' },
         (response) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
@@ -189,10 +249,14 @@ async function checkNativeBridge() {
         }
       );
     });
-    // Even an error response means the host is reachable
-    return true;
+    // Even older hosts may return an error response; a response means reachable.
+    return {
+      connected: true,
+      app: result?.app || 'Ask your GIT Companion',
+      version: result?.version || 'unknown',
+    };
   } catch {
-    return false;
+    return { connected: false };
   }
 }
 
@@ -323,7 +387,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         trackEvent('chat');
         sendResponse({ reply: result.text, model: result.model });
       } else {
-        sendResponse({ error: result.error });
+        const lastUserMessage = [...(msg.messages || [])].reverse().find((m) => m.role === 'user');
+        sendResponse({
+          reply: fallbackRepoAnswer({
+            question: lastUserMessage?.content || '',
+            repoName: msg.repoName,
+            repoContext: msg.readmeText,
+          }),
+          model: 'offline-prototype',
+        });
       }
     })();
     return true;
@@ -344,7 +416,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.action === 'check-bridge') {
-    checkNativeBridge().then((connected) => sendResponse({ connected }));
+    checkNativeBridge().then((status) => sendResponse(status));
     return true;
   }
 

@@ -83,10 +83,31 @@ def send_to_terminal(command, terminal):
     return terminal
 
 
+def is_command_allowed(command):
+    """Return True when command matches the narrow native execution allowlist."""
+    import re
+    allowed_patterns = [
+        r'^git clone https?://[^\s;|&]+',          # git clone
+        r'^claude\s',                             # claude code
+        r'^codex\s',                              # codex cli
+        r'^mkdir -p [A-Za-z0-9._-]+ && cd [A-Za-z0-9._-]+ && codex\s',
+        r'^open -a\s',                            # open app (Cursor etc)
+    ]
+    return any(re.match(pattern, command) for pattern in allowed_patterns)
+
+
 def main():
     msg = read_message()
     if not msg:
         send_message({"success": False, "error": "No input"})
+        return
+
+    if msg.get("type") == "ping" or msg.get("command") == "__ping__":
+        send_message({
+            "success": True,
+            "app": "Ask your GIT Companion",
+            "version": "0.1.0-prototype",
+        })
         return
 
     command = msg.get("command", "")
@@ -96,15 +117,12 @@ def main():
         send_message({"success": False, "error": "Empty command"})
         return
 
+    if msg.get("type") == "validate":
+        send_message({"success": True, "allowed": is_command_allowed(command)})
+        return
+
     # Security: only allow known command patterns
-    import re
-    ALLOWED_PATTERNS = [
-        r'^git clone https?://[^\s;|&]+',          # git clone
-        r'^claude\s',                                # claude code
-        r'^codex\s',                                 # codex cli
-        r'^open -a\s',                               # open app (Cursor etc)
-    ]
-    if not any(re.match(p, command) for p in ALLOWED_PATTERNS):
+    if not is_command_allowed(command):
         send_message({"success": False, "error": "Command not allowed"})
         return
 

@@ -1,1 +1,5 @@
 proxy/.wrangler/
+dist/askyourgit-prototype/
+**/__pycache__/
+*.pyc
+.DS_Store

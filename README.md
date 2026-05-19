@@ -42,6 +42,16 @@ Click **"Ask AI"** to chat interactively:
 | **Codex CLI** | Sends a Codex command to clone and configure |
 | **Custom Tools** | Add your own IDE/tools with `{url}`, `{owner}`, `{repo}`, `{stack}` placeholders |
 
+### Desktop Companion Prototype
+
+Ask your GIT now has a lightweight desktop companion flow for hackathon demos:
+- install the Chrome extension;
+- run `bash native-host/install.sh`;
+- open GitHub, GitLab, or Bitbucket;
+- click **Ask your GIT** to analyze the page and send install commands to Terminal.app, iTerm2, or Warp.
+
+This is the minimal Krisp/Superwhisper-style pattern: a browser extension plus a local installed helper, without a full Electron shell yet.
+
 ### Smart Stack Detection
 
 Automatically detects the project's tech stack:
@@ -81,6 +91,19 @@ Or install manually:
 3. Go to `chrome://extensions` → Enable **Developer mode**
 4. Click **"Load unpacked"** → select the unzipped folder
 5. Visit any GitHub repo — the button appears next to the Code button
+
+### Prototype Package
+
+For a local demo build:
+
+```bash
+chmod +x scripts/build-prototype-package.sh
+./scripts/build-prototype-package.sh
+```
+
+The zip is written to `dist/askyourgit-prototype.zip`.
+
+For the demo, unzip it and double-click `Ask your GIT Companion.app`; then load the unzipped folder as an unpacked Chrome extension. If macOS blocks the unsigned app, right-click → Open, or run `install-companion.command`.
 
 ---
 

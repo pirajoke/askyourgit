@@ -7,6 +7,7 @@ HOST_NAME="com.smile.ai_install"
 BRIDGE_SRC="$SCRIPT_DIR/smile-bridge.py"
 BRIDGE_DST="$HOME/.local/bin/smile-bridge"
 MANIFEST_SRC="$SCRIPT_DIR/$HOST_NAME.json"
+CWS_EXTENSION_ID="pbfofhbacoeelkokidbdcljfmhakpngh"
 
 # Accept extension ID as argument, or compute from unpacked path
 EXT_ID="${1:-}"
@@ -15,11 +16,12 @@ if [ -z "$EXT_ID" ]; then
   # Try auto-detect from installed Chrome/Brave extensions
   for base in \
     "$HOME/Library/Application Support/Google/Chrome/Default/Extensions" \
-    "$HOME/Library/Application Support/BraveSoftware/Brave-Browser/Default/Extensions"; do
+    "$HOME/Library/Application Support/BraveSoftware/Brave-Browser/Default/Extensions" \
+    "$HOME/Library/Application Support/Microsoft Edge/Default/Extensions"; do
     if [ -d "$base" ]; then
       for dir in "$base"/*/; do
         for ver in "$dir"*/; do
-          if [ -f "$ver/manifest.json" ] && grep -q '"AI Install"' "$ver/manifest.json" 2>/dev/null; then
+          if [ -f "$ver/manifest.json" ] && grep -Eq '"Ask your GIT|"AI Install"|askyourgit' "$ver/manifest.json" 2>/dev/null; then
             EXT_ID="$(basename "$(dirname "$ver")")"
             break 3
           fi
@@ -60,6 +62,7 @@ for nm_dir in "${NM_DIRS[@]}"; do
 done
 
 echo ""
-echo "Ask your GIT — Terminal Bridge installed!"
-echo "Now load the extension (chrome://extensions → Load unpacked → $EXT_DIR)"
-echo "Then restart the browser."
+echo "Ask your GIT Companion installed."
+echo "If you install from Chrome Web Store, you can also run:"
+echo "  bash native-host/install.sh $CWS_EXTENSION_ID"
+echo "Now reload the extension or restart the browser."

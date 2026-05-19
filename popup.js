@@ -38,6 +38,13 @@ const terminalAppSelect = document.getElementById('terminal-app');
 const bridgeStatus = document.getElementById('bridge-status');
 const bridgeHint = document.getElementById('bridge-hint');
 const claudeApiKeyInput = document.getElementById('claude-api-key');
+const copyInstallBtn = document.getElementById('btn-copy-install');
+
+copyInstallBtn.addEventListener('click', async () => {
+  await navigator.clipboard.writeText('bash native-host/install.sh');
+  copyInstallBtn.textContent = 'Copied';
+  setTimeout(() => { copyInstallBtn.textContent = 'Copy'; }, 1200);
+});
 
 // --- Custom Tools ---
 const toolModal = document.getElementById('tool-modal');
@@ -227,11 +234,12 @@ chrome.runtime.sendMessage({ action: 'check-bridge' }, (response) => {
   if (response && response.connected) {
     bridgeStatus.textContent = 'Connected';
     bridgeStatus.className = 'bridge-badge bridge-connected';
-    bridgeHint.textContent = 'Commands will be sent directly to your terminal';
+    const version = response.version && response.version !== 'unknown' ? ` ${response.version}` : '';
+    bridgeHint.textContent = `${response.app || 'Companion'}${version} is ready. Commands can open in your terminal.`;
   } else {
     bridgeStatus.textContent = 'Not installed';
     bridgeStatus.className = 'bridge-badge bridge-disconnected';
-    bridgeHint.textContent = 'Run: bash native-host/install.sh to enable';
+    bridgeHint.textContent = 'Run the installer after loading the extension to enable terminal execution.';
   }
 });
 

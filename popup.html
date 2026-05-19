@@ -56,11 +56,34 @@
 
     <div class="divider"></div>
 
-    <!-- Hidden elements for JS compatibility -->
-    <select id="default-client" style="display:none"></select>
-    <input type="checkbox" id="one-click" style="display:none">
-    <span id="bridge-status" style="display:none"></span>
-    <span id="bridge-hint" style="display:none"></span>
+    <div class="section companion-card">
+      <div class="section-row">
+        <div>
+          <div class="label strong-label">Desktop Companion</div>
+          <p id="bridge-hint" class="hint">Checking local connection...</p>
+        </div>
+        <span id="bridge-status" class="bridge-badge bridge-checking">Checking</span>
+      </div>
+      <div class="install-command-row">
+        <code>bash native-host/install.sh</code>
+        <button id="btn-copy-install" class="small-btn">Copy</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label class="label" for="default-client">Default Tool</label>
+      <select id="default-client" class="select">
+        <option value="">Ask every time</option>
+        <option value="claude">Claude Code</option>
+        <option value="cursor">Cursor</option>
+        <option value="codex">Codex</option>
+      </select>
+      <label class="toggle-row one-click-row">
+        <span>One-click install</span>
+        <input type="checkbox" id="one-click" class="toggle-input">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
 
     <div class="section">
       <label class="label" for="terminal-app">Terminal App</label>
@@ -74,8 +97,19 @@
 
     <div class="divider"></div>
 
+    <button id="btn-add-tool" style="display:none"></button>
     <div id="custom-tools-list" style="display:none"></div>
-    <div id="tool-modal" class="tool-modal" style="display:none"></div>
+    <div id="tool-modal" class="tool-modal" style="display:none">
+      <div class="tool-modal-content">
+        <h2 id="tool-modal-title">Add Custom Tool</h2>
+        <input type="hidden" id="tool-edit-id">
+        <input id="tool-name" class="input" placeholder="Tool name">
+        <input id="tool-icon" class="input" placeholder="Icon">
+        <textarea id="tool-command" class="input" placeholder="Command with {url}"></textarea>
+        <button id="tool-save">Save</button>
+        <button id="tool-cancel">Cancel</button>
+      </div>
+    </div>
 
     <!-- Claude API Key -->
     <div class="section">
