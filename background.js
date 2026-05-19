@@ -136,20 +136,42 @@ async function callDirectAPI({ messages, system, max_tokens, model, apiKey }) {
 
 function fallbackRepoAnswer({ question, repoName, repoContext }) {
   const cleanContext = (repoContext || '')
-    .replace(/â€\S*/g, '')
+    .replace(/â€”/g, '-')
+    .replace(/â€“/g, '-')
+    .replace(/â€™/g, "'")
+    .replace(/â€œ|â€/g, '"')
+    .replace(/Â/g, '')
+    .replace(/�/g, '')
     .replace(/[^\S\r\n]+/g, ' ')
     .trim();
   const lower = `${question || ''}`.toLowerCase();
-  const about = cleanContext.match(/About:\s*(.*?)(?=\s(?:Topics|Stars|Forks|License|Primary language|Root files|Languages|README):|$)/i)?.[1]?.trim();
-  const topics = cleanContext.match(/Topics:\s*(.*?)(?=\s(?:Stars|Forks|License|Primary language|Root files|Languages|README):|$)/i)?.[1]?.trim();
-  const language = cleanContext.match(/Primary language:\s*(.*?)(?=\s(?:Root files|Languages|README):|$)/i)?.[1]?.trim();
-  const languages = cleanContext.match(/Languages:\s*(.*?)(?=\s(?:README):|$)/i)?.[1]?.trim();
-  const readme = cleanContext.match(/README:\s*(.*)$/i)?.[1]?.trim();
+  const fieldNames = [
+    'About', 'Topics', 'Stars', 'Forks', 'License', 'Primary language',
+    'Detected stack', 'Root files', 'Files in root', 'Languages', 'README',
+  ];
+
+  function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function getField(name) {
+    const others = fieldNames.filter((field) => field !== name).map(escapeRegex).join('|');
+    const pattern = new RegExp(`${escapeRegex(name)}:\\s*([\\s\\S]*?)(?=\\n(?:${others}):|$)`, 'i');
+    return cleanContext.match(pattern)?.[1]?.trim() || '';
+  }
+
+  const about = getField('About');
+  const topics = getField('Topics');
+  const language = getField('Primary language') || getField('Detected stack');
+  const languages = getField('Languages');
+  const rootFiles = getField('Root files') || getField('Files in root');
+  const readme = getField('README');
 
   function byWords(text, limit = 260) {
     if (!text) return '';
-    if (text.length <= limit) return text;
-    const clipped = text.slice(0, limit);
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (normalized.length <= limit) return normalized;
+    const clipped = normalized.slice(0, limit);
     return `${clipped.slice(0, Math.max(0, clipped.lastIndexOf(' '))).trim()}...`;
   }
 
@@ -163,34 +185,100 @@ function fallbackRepoAnswer({ question, repoName, repoContext }) {
       .join(', ');
   }
 
-  const lines = [];
-  lines.push(`🎯 **${repoName} is a repo assistant for developers.**`);
+  function cleanMarkdownLine(line) {
+    return line
+      .replace(/!\[[^\]]*]\([^)]+\)/g, '')
+      .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
+      .replace(/^#{1,6}\s*/, '')
+      .replace(/^[-*]\s*/, '')
+      .replace(/[`*_<>]/g, '')
+      .trim();
+  }
 
-  if (lower.includes('install') || lower.includes('setup') || lower.includes('run')) {
-    lines.push('It is built around a simple flow: open a repo, understand it quickly, then send an install/setup command to a local tool through the desktop companion.');
-    lines.push('For the demo: click **Ask your GIT**, ask a question, then choose **Claude Code**, **Cursor**, or **Codex** from the install menu.');
-  } else if (lower.includes('stack') || lower.includes('tech')) {
-    lines.push(`**Stack:** ${byWords(languages || language || 'JavaScript extension code with a native desktop companion.', 180)}`);
-    lines.push('The important part for the prototype is not the framework. It is the bridge between the browser page and the local machine.');
-  } else if (lower.includes('what') || lower.includes('about') || lower.includes('tell')) {
-    lines.push(about
-      ? byWords(about, 220)
-      : 'It reads the current GitHub/GitLab/Bitbucket repo page and turns it into a short, actionable developer briefing.');
-    lines.push('The desktop companion makes it feel like Krisp or Superwhisper: install a small local helper once, then the browser extension can talk to your computer.');
+  function readmeTitle(text) {
+    return text.match(/^#\s+(.+)$/m)?.[1]?.trim() || '';
+  }
+
+  function readmeLead(text) {
+    if (!text) return '';
+    const title = readmeTitle(text).toLowerCase();
+    const lines = text
+      .split(/\n+/)
+      .map(cleanMarkdownLine)
+      .filter((line) => {
+        const normalized = line.toLowerCase();
+        return line.length > 24
+          && normalized !== title
+          && !normalized.startsWith('http')
+          && !normalized.includes('badge')
+          && !line.startsWith('|');
+      });
+    return lines[0] || byWords(cleanMarkdownLine(text), 260);
+  }
+
+  function inferComponents(filesText) {
+    const files = filesText.toLowerCase();
+    const components = [];
+    if (/(manifest\.json|content\.js|background\.js|popup\.html)/.test(files)) {
+      components.push('Chrome extension: page detector, repo chat UI, popup settings, and background worker.');
+    }
+    if (files.includes('native-host')) {
+      components.push('Native bridge: local helper that lets the extension send approved commands to the computer.');
+    }
+    if (files.includes('macos-companion')) {
+      components.push('macOS companion: menu-bar app wrapper for installing and checking the local bridge.');
+    }
+    if (/(index\.html|privacy-policy\.html|assets|store)/.test(files)) {
+      components.push('Download website: landing page, assets, screenshots, and packaged prototype.');
+    }
+    if (files.includes('scripts')) {
+      components.push('Build scripts: packaging flow for the downloadable prototype zip.');
+    }
+    return components.slice(0, 5);
+  }
+
+  const isRussian = /[а-яё]/i.test(question || '');
+  const repoPurpose = about || readmeLead(readme) || 'No GitHub description or README summary was found in the captured page context.';
+  const components = inferComponents(rootFiles);
+  const wantsInstall = lower.includes('install') || lower.includes('setup') || lower.includes('run') || lower.includes('download');
+  const wantsStack = lower.includes('stack') || lower.includes('tech') || lower.includes('language');
+  const wantsCompanion = lower.includes('companion') || lower.includes('desktop') || lower.includes('krisp') || lower.includes('superwhisper');
+  const lines = [];
+
+  if (isRussian) {
+    lines.push(`🎯 **Описание репозитория**\n**${repoName}** - ${byWords(repoPurpose, 280)}`);
   } else {
-    lines.push('It summarizes the repo, answers follow-up questions, and gives one-click handoff to local coding tools.');
-    lines.push('That means less README scanning and fewer manual setup steps during a hackathon or code review.');
+    lines.push(`🎯 **Repository description**\n**${repoName}** - ${byWords(repoPurpose, 280)}`);
+  }
+
+  if (components.length) {
+    lines.push(`${isRussian ? '📦 **Что внутри**' : '📦 **What is inside**'}\n${components.map((item) => `• ${item}`).join('\n')}`);
+  }
+
+  if (wantsInstall) {
+    lines.push(`${isRussian ? '🚀 **Как запустить**' : '🚀 **How to use it**'}\n• Open a GitHub/GitLab/Bitbucket repo.\n• Click **Ask your GIT**.\n• Ask about the repo, then choose **Claude Code**, **Cursor**, or **Codex** from the install menu.`);
+  } else if (wantsStack) {
+    lines.push(`${isRussian ? '⚡ **Стек**' : '⚡ **Stack**'}\n• ${byWords(languages || language || 'No language breakdown was found in the captured context.', 220)}`);
+  } else if (wantsCompanion) {
+    lines.push(`${isRussian ? '🖥️ **Desktop companion**' : '🖥️ **Desktop companion**'}\nThe companion is the local helper layer: install it once, then the browser extension can talk to your computer for approved install commands.`);
+  } else {
+    lines.push(`${isRussian ? '🧭 **Коротко**' : '🧭 **In short**'}\nThis repo is meant to turn a repository page into an actionable developer brief: summary, follow-up chat, and handoff to local coding tools.`);
   }
 
   const evidence = [];
-  if (friendlyTopics(topics)) evidence.push(`Repo tags: ${friendlyTopics(topics)}`);
-  if (language || languages) evidence.push(`Detected code: ${byWords(languages || language, 130)}`);
-  if (readme) evidence.push(`README: ${byWords(readme.replace(/^#\s*/, ''), 150)}`);
+  if (friendlyTopics(topics)) evidence.push(`${isRussian ? 'Topics' : 'Repo tags'}: ${friendlyTopics(topics)}`);
+  if (language || languages) evidence.push(`${isRussian ? 'Языки' : 'Languages'}: ${byWords(languages || language, 150)}`);
+  if (rootFiles) evidence.push(`${isRussian ? 'Root files' : 'Root files'}: ${byWords(rootFiles, 180)}`);
+  if (readme && readmeLead(readme) && readmeLead(readme) !== repoPurpose) {
+    evidence.push(`README: ${byWords(readmeLead(readme), 170)}`);
+  }
   if (evidence.length) {
-    lines.push(`📌 **Signals from the page**\n${evidence.slice(0, 3).map((item) => `• ${item}`).join('\n')}`);
+    lines.push(`${isRussian ? '📌 **Сигналы со страницы**' : '📌 **Signals from the page**'}\n${evidence.slice(0, 4).map((item) => `• ${item}`).join('\n')}`);
   }
 
-  lines.push('⚙️ **Offline demo mode:** using local repo context because no API key is connected.');
+  lines.push(isRussian
+    ? '⚙️ **Offline demo mode:** AI API недоступен или ключ не задан, поэтому ответ собран локально из контекста страницы.'
+    : '⚙️ **Offline demo mode:** AI API is unavailable or no key is set, so this answer is generated locally from the repo page context.');
   return lines.join('\n\n');
 }
 
