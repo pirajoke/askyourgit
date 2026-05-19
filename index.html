@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ask your GIT — Repo intelligence on your desktop</title>
-  <meta name="description" content="Download Ask your GIT for macOS. A desktop companion and browser extension that analyzes GitHub, GitLab, and Bitbucket repositories from your browser.">
+  <meta name="description" content="Download Ask your GIT for macOS as a DMG. A desktop companion prepares the Chrome extension folder, installs the local bridge, and analyzes GitHub, GitLab, and Bitbucket repositories.">
   <meta property="og:title" content="Ask your GIT — Repo intelligence on your desktop">
-  <meta property="og:description" content="A menu-bar companion and browser extension for asking questions about any open repository.">
+  <meta property="og:description" content="A macOS DMG with a menu-bar companion and browser extension for asking questions about any open repository.">
   <meta property="og:image" content="https://pirajoke.github.io/askyourgit/assets/og-image.png">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pirajoke.github.io/askyourgit/">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Ask your GIT — Repo intelligence on your desktop">
-  <meta name="twitter:description" content="Download a local companion that connects your browser repo pages to AI coding tools.">
+  <meta name="twitter:description" content="Download the macOS DMG. The companion prepares the Chrome extension folder and connects repo pages to AI coding tools.">
   <meta name="twitter:image" content="https://pirajoke.github.io/askyourgit/assets/og-image.png">
   <style>
     :root {
@@ -190,6 +190,23 @@
       margin-top: 14px;
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .hero-badge {
+      padding: 7px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      font-weight: 700;
     }
 
     .product-stage {
@@ -474,6 +491,199 @@
       font-size: 14px;
     }
 
+    .installer-section {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: #10141d;
+    }
+
+    .installer-section .section-inner {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .installer-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 24px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .installer-list li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: var(--soft);
+      font-size: 15px;
+    }
+
+    .installer-list span {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #071018;
+      background: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .dmg-window {
+      overflow: hidden;
+      border-radius: 8px;
+      background: #f7f8fb;
+      color: #17202e;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: var(--shadow);
+    }
+
+    .dmg-titlebar {
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      color: #334155;
+      background: #eef2f7;
+      border-bottom: 1px solid #d7dee9;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .dmg-lights {
+      position: absolute;
+      left: 14px;
+      display: flex;
+      gap: 7px;
+    }
+
+    .dmg-lights span {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #ff5f57;
+    }
+
+    .dmg-lights span:nth-child(2) { background: #ffbd2e; }
+    .dmg-lights span:nth-child(3) { background: #28c840; }
+
+    .dmg-canvas {
+      min-height: 270px;
+      display: grid;
+      grid-template-columns: 1fr 150px 1fr;
+      gap: 18px;
+      align-items: center;
+      padding: 34px 36px;
+      background:
+        linear-gradient(135deg, rgba(56, 189, 248, 0.08), transparent 50%),
+        #fbfdff;
+    }
+
+    .dmg-item {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+      text-align: center;
+      font-weight: 760;
+    }
+
+    .dmg-app-icon {
+      width: 92px;
+      height: 92px;
+      padding: 14px;
+      border-radius: 24px;
+      background: linear-gradient(145deg, #8b4a2e, #4d2518);
+      box-shadow: 0 18px 36px rgba(51, 65, 85, 0.18);
+    }
+
+    .dmg-folder {
+      width: 116px;
+      height: 84px;
+      position: relative;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #5cc7ff, #2797dc);
+      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.18);
+    }
+
+    .dmg-folder::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: -14px;
+      width: 48px;
+      height: 22px;
+      border-radius: 9px 9px 0 0;
+      background: #50bdf5;
+    }
+
+    .dmg-folder::after {
+      content: "A";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 42px;
+      font-weight: 850;
+    }
+
+    .dmg-arrow {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: #a35a2b;
+      font-size: 14px;
+      font-weight: 800;
+      transform: rotate(-2deg);
+    }
+
+    .dmg-arrow-line {
+      width: 140px;
+      height: 2px;
+      position: relative;
+      background: #a35a2b;
+    }
+
+    .dmg-arrow-line::after {
+      content: "";
+      position: absolute;
+      right: -2px;
+      top: -5px;
+      width: 12px;
+      height: 12px;
+      border-right: 2px solid #a35a2b;
+      border-top: 2px solid #a35a2b;
+      transform: rotate(45deg);
+    }
+
+    .dmg-footer {
+      display: grid;
+      gap: 8px;
+      padding: 18px 20px 20px;
+      color: #64748b;
+      border-top: 1px solid #dbe3ee;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .path-pill {
+      display: inline-block;
+      width: fit-content;
+      max-width: 100%;
+      padding: 6px 8px;
+      border-radius: 7px;
+      color: #1e293b;
+      background: #edf2f7;
+      border: 1px solid #d8e0ea;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
     .download-band {
       background: #edf2f7;
       color: #10141d;
@@ -535,9 +745,31 @@
       font-size: 12px;
     }
 
+    .download-facts {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .download-facts li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .download-facts strong {
+      color: #111827;
+    }
+
     .steps {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 14px;
       margin-top: 34px;
     }
@@ -604,6 +836,7 @@
 
     @media (max-width: 920px) {
       .hero,
+      .installer-section .section-inner,
       .download-band .section-inner {
         grid-template-columns: 1fr;
       }
@@ -626,6 +859,11 @@
       .repo-view { grid-template-columns: 1fr; }
       .repo-side { display: none; }
       .ask-panel { left: 12px; right: 12px; width: auto; }
+      .dmg-canvas {
+        grid-template-columns: 1fr;
+        gap: 26px;
+      }
+      .dmg-arrow { transform: rotate(90deg); }
       .feature-grid,
       .steps { grid-template-columns: 1fr; }
       .footer-inner { flex-direction: column; justify-content: center; text-align: center; }
@@ -641,6 +879,7 @@
           <span>Ask your GIT</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
+          <a href="#installer">Installer</a>
           <a href="#features">Features</a>
           <a href="#download">Download</a>
           <a href="privacy-policy.html">Privacy</a>
@@ -652,9 +891,9 @@
     <main>
       <section class="hero">
         <div>
-          <div class="eyebrow"><span class="status-dot"></span> macOS companion prototype ready</div>
-          <h1>Ask any repo from your desktop.</h1>
-          <p class="lead">Ask your GIT adds a local menu-bar companion to your computer and a browser extension to your repo pages. Open GitHub, GitLab, or Bitbucket, ask what the code does, then hand it to Claude Code, Cursor, or Codex.</p>
+          <div class="eyebrow"><span class="status-dot"></span> DMG installer is live</div>
+          <h1>Install repo intelligence like a Mac app.</h1>
+          <p class="lead">Download Ask your GIT as a macOS DMG, drag the companion into Applications, then let it prepare the Chrome extension folder and local bridge for GitHub, GitLab, and Bitbucket.</p>
           <div class="hero-actions">
             <a class="button button-primary" href="dist/askyourgit-macos.dmg" download="Ask-your-GIT.dmg">
               Download macOS app
@@ -662,6 +901,11 @@
             <a class="button button-secondary" href="#how">See how it works</a>
           </div>
           <p class="download-note">Prototype DMG for macOS. Drag the companion to Applications; it prepares the Chrome extension folder and local native bridge.</p>
+          <div class="hero-badges" aria-label="Download details">
+            <span class="hero-badge">DMG download</span>
+            <span class="hero-badge">Menu-bar companion</span>
+            <span class="hero-badge">Chrome extension included</span>
+          </div>
         </div>
 
         <div class="product-stage" aria-label="Ask your GIT product preview">
@@ -723,11 +967,51 @@
         </div>
       </section>
 
+      <section class="installer-section" id="installer">
+        <div class="section-inner">
+          <div>
+            <div class="section-kicker">New installer flow</div>
+            <h2>Download the app, not a loose folder.</h2>
+            <p class="section-lead">The primary download is now a macOS DMG. The app carries the extension payload inside the bundle, copies it into Application Support on first launch, and installs the native bridge for local terminal handoff.</p>
+            <ul class="installer-list">
+              <li><span>1</span><strong>Drag Ask your GIT Companion.app into Applications.</strong></li>
+              <li><span>2</span><strong>Open it once to prepare the Chrome extension folder and native bridge.</strong></li>
+              <li><span>3</span><strong>For this prototype, load that prepared folder in chrome://extensions.</strong></li>
+            </ul>
+          </div>
+
+          <div class="dmg-window" aria-label="Ask your GIT DMG installer preview">
+            <div class="dmg-titlebar">
+              <div class="dmg-lights" aria-hidden="true"><span></span><span></span><span></span></div>
+              Ask your GIT
+            </div>
+            <div class="dmg-canvas">
+              <div class="dmg-item">
+                <img class="dmg-app-icon" src="icons/icon128.png" alt="">
+                <span>Ask your GIT Companion</span>
+              </div>
+              <div class="dmg-arrow">
+                <span>Drag me in</span>
+                <span class="dmg-arrow-line"></span>
+              </div>
+              <div class="dmg-item">
+                <div class="dmg-folder" aria-hidden="true"></div>
+                <span>Applications</span>
+              </div>
+            </div>
+            <div class="dmg-footer">
+              <span>First launch creates the browser extension folder here:</span>
+              <span class="path-pill">~/Library/Application Support/Ask your GIT/extension</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="section" id="features">
         <div class="section-inner">
-          <div class="section-kicker">21st-style component system</div>
-          <h2>One product, two surfaces.</h2>
-          <p class="section-lead">The website uses a modern component layout: hero, feature cards, product mockup, download CTA, and steps. The app itself combines a menu-bar companion with an injected repo assistant inside your browser.</p>
+          <div class="section-kicker">Desktop + browser</div>
+          <h2>One product, two connected surfaces.</h2>
+          <p class="section-lead">The app installs like a lightweight Mac utility, while the browser extension appears directly on repo pages. Together they turn the current repository into a chat, summary, and local setup workflow.</p>
           <div class="feature-grid">
             <article class="feature">
               <div class="feature-mark">1</div>
@@ -756,8 +1040,8 @@
             </article>
             <article class="feature">
               <div class="feature-mark">6</div>
-              <h3>Downloadable demo</h3>
-              <p>The macOS bundle, icon, native bridge, extension folder, and installer script are packaged together.</p>
+              <h3>DMG download</h3>
+              <p>The macOS app, icon, native bridge, and extension payload ship together in a single downloadable DMG.</p>
             </article>
           </div>
         </div>
@@ -768,7 +1052,7 @@
           <div>
             <div class="section-kicker">Download</div>
             <h2>Install Ask your GIT on this computer.</h2>
-            <p class="section-lead">Download the DMG, drag the companion app into Applications, then let it prepare the Chrome extension folder. The companion appears in the macOS menu bar like a lightweight developer utility.</p>
+            <p class="section-lead">Download the DMG, drag the companion app into Applications, then open it once. It prepares the extension folder and native bridge; Chrome Web Store publishing will remove the prototype Load unpacked step later.</p>
           </div>
           <aside class="download-card">
             <div class="app-row">
@@ -779,6 +1063,11 @@
               </div>
             </div>
             <a class="button" href="dist/askyourgit-macos.dmg" download="Ask-your-GIT.dmg">Download DMG</a>
+            <ul class="download-facts">
+              <li><span>Primary file</span><strong>askyourgit-macos.dmg</strong></li>
+              <li><span>App install</span><strong>Drag to Applications</strong></li>
+              <li><span>Extension folder</span><strong>Prepared on launch</strong></li>
+            </ul>
             <p class="checksum">No unzip for the app. Need raw extension files? <a href="dist/askyourgit-prototype.zip" download="Ask-your-GIT-macOS-prototype.zip">Download ZIP</a>.</p>
           </aside>
         </div>
@@ -787,7 +1076,7 @@
       <section class="download-band" id="how">
         <div class="section-inner" style="display:block">
           <div class="section-kicker">Setup</div>
-          <h2>Four steps to the demo.</h2>
+          <h2>Five steps to the prototype.</h2>
           <div class="steps">
             <article class="step">
               <div class="step-number">1</div>
@@ -801,11 +1090,16 @@
             </article>
             <article class="step">
               <div class="step-number">3</div>
+              <h3>Launch once</h3>
+              <p>The app prepares the extension folder and installs the local native bridge.</p>
+            </article>
+            <article class="step">
+              <div class="step-number">4</div>
               <h3>Load extension</h3>
               <p>Open chrome://extensions, enable Developer mode, and load ~/Library/Application Support/Ask your GIT/extension.</p>
             </article>
             <article class="step">
-              <div class="step-number">4</div>
+              <div class="step-number">5</div>
               <h3>Ask a repo</h3>
               <p>Open any repo and use Ask AI to understand it before installing.</p>
             </article>
@@ -817,7 +1111,7 @@
         <div class="section-inner">
           <div class="section-kicker">Ready</div>
           <h2>Turn any repo page into a local AI workflow.</h2>
-          <p class="section-lead" style="margin-left:auto;margin-right:auto">Download the prototype and show the menu-bar app, the browser button, and the repo chat in one flow.</p>
+          <p class="section-lead" style="margin-left:auto;margin-right:auto">Download the DMG and show the Mac installer, the menu-bar companion, the browser button, and the repo chat in one flow.</p>
           <div class="hero-actions" style="justify-content:center">
             <a class="button button-primary" href="dist/askyourgit-macos.dmg" download="Ask-your-GIT.dmg">Download Ask your GIT</a>
             <a class="button button-secondary" href="https://github.com/pirajoke/askyourgit">View source</a>
