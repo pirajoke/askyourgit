@@ -1402,7 +1402,7 @@
     return btn;
   }
 
-  let companionLaunchHandled = false;
+  let companionLaunchInFlight = false;
 
   function launchCompanionPanel() {
     const startedAt = Date.now();
@@ -1427,27 +1427,28 @@
 
       createDropdown(info, btn, { autoChat: true });
       showToast(`Analyzing ${info.owner}/${info.repo}...`);
+      setTimeout(() => { companionLaunchInFlight = false; }, 1500);
     };
 
     attempt();
   }
 
   function consumeCompanionLaunchFlag() {
-    if (companionLaunchHandled) return;
-
     const url = new URL(window.location.href);
     const shouldLaunch = url.searchParams.get('askyourgit') === '1'
       || url.hash.includes('askyourgit=1');
     if (!shouldLaunch) return;
+    if (companionLaunchInFlight) return;
 
-    companionLaunchHandled = true;
+    companionLaunchInFlight = true;
     url.searchParams.delete('askyourgit');
     if (url.hash.includes('askyourgit=1')) {
       const cleanHash = url.hash
-        .replace(/[#&?]?askyourgit=1/, '')
+        .replace(/([#&?])askyourgit=1&?/, '$1')
+        .replace(/[&?]$/, '')
         .replace(/^#&/, '#')
         .replace(/^#\?/, '#');
-      url.hash = cleanHash === '#' ? '' : cleanHash;
+      url.hash = cleanHash === '#' || cleanHash === '#?' ? '' : cleanHash;
     }
     window.history.replaceState(window.history.state, document.title, url.toString());
     launchCompanionPanel();
@@ -1481,6 +1482,10 @@
       injectButton();
       consumeCompanionLaunchFlag();
     }, 500);
+  });
+
+  window.addEventListener('hashchange', () => {
+    consumeCompanionLaunchFlag();
   });
 
   // --- Keyboard Shortcut (Cmd+Shift+I) ---

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ask your GIT — AI for any repo",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Ask AI about any GitHub repo and install with one click. Claude Code, Cursor, Codex & more.",
   "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
   "host_permissions": ["https://api.anthropic.com/v1/messages", "https://vercel-nu-wheat.vercel.app/api/chat", "https://api.github.com/repos/*", "https://smile-ai-proxy.thegreatgatsby456.workers.dev/*"],

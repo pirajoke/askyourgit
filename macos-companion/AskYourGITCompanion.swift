@@ -292,13 +292,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func companionLaunchURL(_ value: String) -> String {
         guard var components = URLComponents(string: value) else {
-            return value + (value.contains("?") ? "&" : "?") + "askyourgit=1"
+            return value + "#askyourgit=1"
         }
 
-        var queryItems = components.queryItems ?? []
-        queryItems.removeAll { $0.name == "askyourgit" }
-        queryItems.append(URLQueryItem(name: "askyourgit", value: "1"))
-        components.queryItems = queryItems
+        let fragment = components.fragment ?? ""
+        let cleanedFragment = fragment
+            .replacingOccurrences(of: "askyourgit=1", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "&#?"))
+        components.fragment = cleanedFragment.isEmpty
+            ? "askyourgit=1"
+            : "\(cleanedFragment)&askyourgit=1"
         return components.string ?? value
     }
 
