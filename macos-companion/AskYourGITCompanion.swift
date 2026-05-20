@@ -2,7 +2,7 @@ import Cocoa
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var repoWindowController: RepoAnalysisWindowController?
+    private var repoWindowController: CompactRepoAnalysisWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url, forType: .string)
 
-        guard let controller = RepoAnalysisWindowController(repoURL: url) else {
+        guard let controller = CompactRepoAnalysisWindowController(repoURL: url) else {
             show("No repo detected", "Could not parse the repository URL.")
             return
         }
@@ -402,6 +402,7 @@ private struct RepoAnalysisContext {
     var readme: String?
     var stars: Int?
     var forks: Int?
+    var license: String?
     var updatedAt: String?
 
     var languageSummary: String {
@@ -440,6 +441,9 @@ private struct RepoAnalysisContext {
         if let forks {
             lines.append("Forks: \(forks)")
         }
+        if let license {
+            lines.append("License: \(license)")
+        }
         if let updatedAt {
             lines.append("Updated: \(updatedAt)")
         }
@@ -461,7 +465,13 @@ private struct GitHubRepoResponse: Decodable {
     let language: String?
     let stargazers_count: Int?
     let forks_count: Int?
+    let license: GitHubLicense?
     let updated_at: String?
+}
+
+private struct GitHubLicense: Decodable {
+    let spdx_id: String?
+    let name: String?
 }
 
 private struct GitHubContentItem: Decodable {
@@ -491,6 +501,7 @@ private enum GitHubRepoLoader {
             context.primaryLanguage = repo.language
             context.stars = repo.stargazers_count
             context.forks = repo.forks_count
+            context.license = repo.license?.spdx_id ?? repo.license?.name
             context.updatedAt = repo.updated_at
         }
 
@@ -539,38 +550,34 @@ private enum GitHubRepoLoader {
     }
 }
 
-final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegate {
-    private struct Mode {
-        let id: String
-        let title: String
-        let icon: String
-    }
-
-    private let modes = [
-        Mode(id: "overview", title: "Overview", icon: "▦"),
-        Mode(id: "codex", title: "Codex", icon: "◉"),
-        Mode(id: "claude", title: "Claude", icon: "✳︎"),
-        Mode(id: "agents", title: "Agents", icon: "⌁"),
-        Mode(id: "readme", title: "README", icon: "▤"),
-    ]
-
+final class CompactRepoAnalysisWindowController: NSWindowController, NSTextFieldDelegate {
     private let repoRef: RepoRef
     private var context: RepoAnalysisContext
-    private var selectedMode = "overview"
-    private var modeButtons: [String: NSButton] = [:]
+    private var chatTranscript = ""
+    private var chatStarted = false
 
-    private let statusLabel = NSTextField(labelWithString: "Loading")
-    private let mainTextView = NSTextView()
-    private let messagesTextView = NSTextView()
+    private let badgeStack = NSStackView()
+    private let metaLabel = NSTextField(labelWithString: "Loading repo metadata...")
+    private let repoLabel = NSTextField(labelWithString: "")
+    private let urlLabel = NSTextField(labelWithString: "")
+    private let statusLabel = NSTextField(labelWithString: "Analyzing...")
+
+    private let detailCard = NSView()
+    private let detailTitleLabel = NSTextField(labelWithString: "")
+    private let panelTextView = NSTextView()
+    private let panelScrollView = NSScrollView()
+    private let inputRow = NSStackView()
     private let questionField = NSTextField()
     private let askButton = NSButton(title: "Ask", target: nil, action: nil)
 
-    private let backgroundColor = NSColor(calibratedRed: 0.69, green: 0.69, blue: 0.68, alpha: 0.96)
-    private let cardColor = NSColor(calibratedRed: 0.78, green: 0.78, blue: 0.76, alpha: 0.92)
-    private let textColor = NSColor(calibratedRed: 0.08, green: 0.08, blue: 0.08, alpha: 1)
-    private let mutedTextColor = NSColor(calibratedRed: 0.22, green: 0.22, blue: 0.22, alpha: 1)
-    private let accentColor = NSColor(calibratedRed: 1.00, green: 0.49, blue: 0.08, alpha: 1)
-    private let tealColor = NSColor(calibratedRed: 0.04, green: 0.47, blue: 0.55, alpha: 1)
+    private let backgroundColor = NSColor(calibratedRed: 0.07, green: 0.09, blue: 0.12, alpha: 1)
+    private let cardColor = NSColor(calibratedRed: 0.10, green: 0.12, blue: 0.16, alpha: 1)
+    private let borderColor = NSColor(calibratedRed: 0.22, green: 0.25, blue: 0.31, alpha: 1)
+    private let textColor = NSColor(calibratedRed: 0.90, green: 0.93, blue: 0.98, alpha: 1)
+    private let mutedTextColor = NSColor(calibratedRed: 0.58, green: 0.62, blue: 0.70, alpha: 1)
+    private let accentColor = NSColor(calibratedRed: 0.57, green: 0.36, blue: 0.98, alpha: 1)
+    private let orangeColor = NSColor(calibratedRed: 1.00, green: 0.49, blue: 0.06, alpha: 1)
+    private let greenColor = NSColor(calibratedRed: 0.36, green: 0.86, blue: 0.49, alpha: 1)
 
     init?(repoURL: String) {
         guard let repoRef = RepoRef(urlString: repoURL) else { return nil }
@@ -578,15 +585,15 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
         self.context = RepoAnalysisContext(ref: repoRef)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 820),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 590),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Ask your GIT"
-        window.minSize = NSSize(width: 560, height: 680)
+        window.backgroundColor = backgroundColor
+        window.isMovableByWindowBackground = true
         window.center()
-        window.titlebarAppearsTransparent = false
 
         super.init(window: window)
         buildInterface()
@@ -605,123 +612,120 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
         let root = NSStackView()
         root.orientation = .vertical
         root.alignment = .width
-        root.spacing = 14
+        root.spacing = 8
         root.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(root)
 
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 28),
-            root.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -28),
-            root.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 22),
-            root.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -22),
+            root.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            root.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            root.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 18),
+            root.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -18),
         ])
 
-        root.addArrangedSubview(makeModeBar())
+        root.addArrangedSubview(makeHeader())
         root.addArrangedSubview(makeDivider())
-        root.addArrangedSubview(makeHeaderCard())
+        root.addArrangedSubview(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)))
+        root.addArrangedSubview(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
+        root.addArrangedSubview(makeDivider())
+        root.addArrangedSubview(makeActionRow(symbol: "diamond.fill", title: "Claude Code", action: #selector(openClaudeCode)))
+        root.addArrangedSubview(makeActionRow(symbol: "play.fill", title: "Cursor", action: #selector(openCursor)))
+        root.addArrangedSubview(makeActionRow(symbol: "circle.hexagongrid.fill", title: "Codex", action: #selector(openCodex)))
+        root.addArrangedSubview(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+        root.addArrangedSubview(makeDivider())
+        root.addArrangedSubview(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)))
+        root.addArrangedSubview(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
 
-        configureTextView(mainTextView, size: 14, weight: .regular)
-        mainTextView.string = "Loading GitHub repository metadata, root files, languages, and README..."
-        root.addArrangedSubview(makeScrollCard(mainTextView, height: 250))
+        configureTextView(panelTextView, size: 13, weight: .regular)
+        root.addArrangedSubview(makeDetailCard())
+        detailCard.isHidden = true
 
-        configureTextView(messagesTextView, size: 13, weight: .regular)
-        messagesTextView.string = "Ask your GIT:\nPreparing context. Ask about weak points, setup, stack, files, or what to build next.\n"
-        root.addArrangedSubview(makeScrollCard(messagesTextView, height: 250))
+        root.addArrangedSubview(configureInputRow())
+        inputRow.isHidden = true
 
-        root.addArrangedSubview(makeInputRow())
-        renderMode()
+        refreshBadges()
+        refreshMeta()
     }
 
-    private func makeModeBar() -> NSView {
-        let bar = NSStackView()
-        bar.orientation = .horizontal
-        bar.alignment = .centerY
-        bar.distribution = .fillEqually
-        bar.spacing = 10
+    private func makeHeader() -> NSView {
+        let header = NSStackView()
+        header.orientation = .vertical
+        header.alignment = .leading
+        header.spacing = 7
 
-        for mode in modes {
-            let button = NSButton(title: "\(mode.icon)\n\(mode.title)", target: self, action: #selector(selectMode(_:)))
-            button.identifier = NSUserInterfaceItemIdentifier(mode.id)
-            button.isBordered = false
-            button.wantsLayer = true
-            button.layer?.cornerRadius = 10
-            button.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-            button.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            button.heightAnchor.constraint(equalToConstant: 68).isActive = true
-            modeButtons[mode.id] = button
-            bar.addArrangedSubview(button)
-        }
+        badgeStack.orientation = .horizontal
+        badgeStack.alignment = .leading
+        badgeStack.spacing = 8
+        header.addArrangedSubview(badgeStack)
 
-        updateModeButtons()
-        return bar
-    }
+        metaLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        metaLabel.textColor = mutedTextColor
+        metaLabel.lineBreakMode = .byTruncatingTail
+        header.addArrangedSubview(metaLabel)
 
-    private func makeHeaderCard() -> NSView {
-        let card = makeCard()
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 5
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(stack)
+        repoLabel.stringValue = repoRef.fullName
+        repoLabel.font = NSFont.systemFont(ofSize: 19, weight: .bold)
+        repoLabel.textColor = textColor
+        repoLabel.lineBreakMode = .byTruncatingMiddle
+        header.addArrangedSubview(repoLabel)
 
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 18),
-            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -18),
-            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
-            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
-        ])
-
-        stack.addArrangedSubview(makeLabel("Ask your GIT", size: 26, weight: .bold, color: textColor))
-        stack.addArrangedSubview(makeLabel(repoRef.fullName, size: 18, weight: .bold, color: mutedTextColor))
-        stack.addArrangedSubview(makeLabel(repoRef.url, size: 12, weight: .regular, color: mutedTextColor))
+        urlLabel.stringValue = repoRef.url
+        urlLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        urlLabel.textColor = mutedTextColor
+        urlLabel.lineBreakMode = .byTruncatingMiddle
+        header.addArrangedSubview(urlLabel)
 
         statusLabel.font = NSFont.systemFont(ofSize: 13, weight: .bold)
-        statusLabel.textColor = tealColor
-        stack.addArrangedSubview(statusLabel)
+        statusLabel.textColor = greenColor
+        header.addArrangedSubview(statusLabel)
 
-        return card
+        return header
     }
 
-    private func makeInputRow() -> NSView {
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 10
+    private func configureInputRow() -> NSView {
+        inputRow.orientation = .horizontal
+        inputRow.alignment = .centerY
+        inputRow.spacing = 8
 
         questionField.placeholderString = "Ask about this repo..."
         questionField.font = NSFont.systemFont(ofSize: 15)
+        questionField.textColor = textColor
+        questionField.backgroundColor = cardColor
+        questionField.isBezeled = false
+        questionField.isBordered = false
+        questionField.drawsBackground = true
         questionField.delegate = self
         questionField.target = self
         questionField.action = #selector(askQuestion)
         questionField.wantsLayer = true
-        questionField.layer?.backgroundColor = NSColor.white.cgColor
+        questionField.layer?.backgroundColor = cardColor.cgColor
         questionField.layer?.cornerRadius = 8
-        questionField.layer?.borderWidth = 2
+        questionField.layer?.borderWidth = 1
         questionField.layer?.borderColor = accentColor.cgColor
-        questionField.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        questionField.focusRingType = .none
+        questionField.heightAnchor.constraint(equalToConstant: 40).isActive = true
 
         askButton.target = self
         askButton.action = #selector(askQuestion)
-        askButton.bezelStyle = .rounded
+        askButton.isBordered = false
         askButton.keyEquivalent = "\r"
         askButton.wantsLayer = true
-        askButton.layer?.backgroundColor = accentColor.cgColor
-        askButton.layer?.cornerRadius = 10
+        askButton.layer?.backgroundColor = orangeColor.cgColor
+        askButton.layer?.cornerRadius = 9
         askButton.attributedTitle = NSAttributedString(
             string: "Ask",
             attributes: [
-                .font: NSFont.systemFont(ofSize: 16, weight: .bold),
+                .font: NSFont.systemFont(ofSize: 15, weight: .bold),
                 .foregroundColor: NSColor.white,
             ]
         )
-        askButton.widthAnchor.constraint(equalToConstant: 76).isActive = true
-        askButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        askButton.widthAnchor.constraint(equalToConstant: 66).isActive = true
+        askButton.heightAnchor.constraint(equalToConstant: 40).isActive = true
 
-        row.addArrangedSubview(questionField)
-        row.addArrangedSubview(askButton)
+        inputRow.addArrangedSubview(questionField)
+        inputRow.addArrangedSubview(askButton)
         questionField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        return row
+        return inputRow
     }
 
     private func loadContext() {
@@ -733,14 +737,604 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
                 await MainActor.run {
                     self.context = loaded
                     self.statusLabel.stringValue = "Ready"
-                    self.renderMode()
-                    self.appendAssistant("Ready. I analyzed \(loaded.ref.fullName). Ask about weak points, setup, stack, files, or next actions.")
+                    self.refreshBadges()
+                    self.refreshMeta()
+                    if self.chatStarted {
+                        self.showAskAI()
+                    }
                 }
             } catch {
                 await MainActor.run {
                     self.statusLabel.stringValue = "Offline context"
+                    self.refreshBadges()
+                    self.refreshMeta()
+                }
+            }
+        }
+    }
+
+    @objc private func showQuickSummary() {
+        showDetail(title: "Quick Summary", body: overviewText(), showsInput: false)
+    }
+
+    @objc private func showAskAI() {
+        if !chatStarted {
+            chatTranscript = """
+            Ask your GIT:
+            Ready. I analyzed \(context.ref.fullName).
+
+            Ask about weak points, setup, stack, files, architecture, or next actions.
+            """
+            chatStarted = true
+        }
+        showDetail(title: "Ask AI", body: chatTranscript, showsInput: true)
+        window?.makeFirstResponder(questionField)
+    }
+
+    @objc private func askQuestion() {
+        let question = questionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else { return }
+
+        if !chatStarted {
+            showAskAI()
+        }
+
+        questionField.stringValue = ""
+        appendMessage("You", question)
+        appendMessage("Ask your GIT", answer(for: question))
+    }
+
+    private func overviewText() -> String {
+        """
+        \(context.description ?? "No GitHub description available.")
+
+        Repository:
+        \(context.ref.fullName)
+
+        Stack:
+        \(context.languageSummary)
+
+        Signals:
+        Stars: \(context.stars.map { String($0) } ?? "unknown")
+        Forks: \(context.forks.map { String($0) } ?? "unknown")
+        License: \(context.license ?? "unknown")
+        Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(12).joined(separator: ", "))
+
+        Root files:
+        \(context.files.prefix(28).joined(separator: ", "))
+
+        README signal:
+        \(clipped(context.readmeSignal, limit: 780))
+        """
+    }
+
+    private func answer(for question: String) -> String {
+        let lower = question.lowercased()
+
+        if lower.contains("weak") || lower.contains("risk") || lower.contains("problem") || lower.contains("issue") || lower.contains("bug") || lower.contains("риск") || lower.contains("проблем") {
+            return """
+            Weak points to inspect first:
+
+            1. Setup reliability: can a new user run it from README only?
+            2. Runtime assumptions: env vars, local services, auth, and browser permissions.
+            3. Tests for the main workflow.
+            4. UI timing: anything that depends on page reloads or active browser state.
+
+            For \(context.ref.fullName), start with the stack and root files:
+            \(context.languageSummary)
+            \(context.files.prefix(18).joined(separator: ", "))
+            """
+        }
+
+        if lower.contains("install") || lower.contains("run") || lower.contains("setup") || lower.contains("установ") || lower.contains("запуск") {
+            return """
+            Practical setup path:
+
+            1. Clone \(context.ref.url)
+            2. Read README first.
+            3. Inspect root files: \(context.files.prefix(16).joined(separator: ", "))
+            4. If package.json exists, check scripts for dev, build, and test commands.
+
+            Stack signal:
+            \(context.languageSummary)
+            """
+        }
+
+        if lower.contains("file") || lower.contains("structure") || lower.contains("архит") || lower.contains("файл") || lower.contains("структ") {
+            return """
+            Root structure:
+
+            \(context.files.prefix(42).joined(separator: ", "))
+
+            I would map this into product surface, runtime/server code, shared utilities, tests, and docs before changing behavior.
+            """
+        }
+
+        if lower.contains("stack") || lower.contains("language") || lower.contains("tech") || lower.contains("язык") || lower.contains("стек") {
+            return """
+            Detected stack:
+
+            \(context.languageSummary)
+
+            Primary language: \(context.primaryLanguage ?? "unknown").
+            First checks should be package scripts, type checks, build output, and tests for the main runtime path.
+            """
+        }
+
+        return """
+        Summary:
+        \(context.description ?? "No GitHub description available.")
+
+        Key signals:
+        - Languages: \(context.languageSummary)
+        - Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(10).joined(separator: ", "))
+        - Root files: \(context.files.prefix(18).joined(separator: ", "))
+
+        README signal:
+        \(clipped(context.readmeSignal, limit: 560))
+        """
+    }
+
+    private func appendMessage(_ sender: String, _ text: String) {
+        let separator = chatTranscript.hasSuffix("\n") ? "" : "\n"
+        chatTranscript = chatTranscript + separator + "\n\(sender):\n\(text)\n"
+        showDetail(title: "Ask AI", body: chatTranscript, showsInput: true)
+        panelTextView.scrollToEndOfDocument(nil)
+    }
+
+    @objc private func openClaudeCode() {
+        sendTerminalCommand("claude \"Analyze \(context.ref.url). Summarize the repo, weak points, setup path, and first implementation step.\"")
+    }
+
+    @objc private func openCodex() {
+        sendTerminalCommand("codex \"Analyze \(context.ref.url). Identify stack, risks, setup path, and next engineering action.\"")
+    }
+
+    @objc private func openCursor() {
+        let repo = "\(context.ref.url).git"
+        let encodedRepo = repo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? repo
+        let value = "cursor://vscode.git/clone?url=\(encodedRepo)"
+
+        if let url = URL(string: value), NSWorkspace.shared.open(url) {
+            statusLabel.stringValue = "Opening Cursor..."
+        } else {
+            copyToPasteboard(repo)
+            showInlineNotice("Cursor URL could not be opened. I copied the clone URL instead:\n\n\(repo)")
+        }
+    }
+
+    @objc private func addCustomTool() {
+        showInlineNotice("Custom tool slot\n\nPrototype behavior: save a local command template here, for example:\n\nmy-tool \"Analyze \(context.ref.url)\"")
+    }
+
+    @objc private func openSettings() {
+        showInlineNotice("Settings\n\nDesktop companion: Connected\nBridge: installed from the menu bar app\nRepo detection: active browser tab, then open GitHub/GitLab/Bitbucket tabs\n\nUse Install Browser Bridge from the menu to refresh native messaging.")
+    }
+
+    @objc private func shareRepo() {
+        copyToPasteboard("\(context.ref.fullName) \(context.ref.url)")
+        statusLabel.stringValue = "Share copied"
+    }
+
+    private func sendTerminalCommand(_ command: String) {
+        copyToPasteboard(command)
+        let script = """
+        tell application "Terminal"
+          activate
+          if (count of windows) > 0 then
+            do script \(appleScriptString(command)) in front window
+          else
+            do script \(appleScriptString(command))
+          end if
+        end tell
+        """
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        try? process.run()
+        statusLabel.stringValue = "Sent to Terminal"
+    }
+
+    private func showInlineNotice(_ text: String) {
+        showDetail(title: "Ask your GIT", body: text, showsInput: false)
+        statusLabel.stringValue = "Ready"
+    }
+
+    private func showDetail(title: String, body: String, showsInput: Bool) {
+        resizeWindow(height: showsInput ? 760 : 720)
+        detailTitleLabel.stringValue = title
+        panelTextView.string = body
+        detailCard.isHidden = false
+        inputRow.isHidden = !showsInput
+    }
+
+    private func resizeWindow(height: CGFloat) {
+        guard let window else { return }
+        var frame = window.frame
+        guard abs(frame.height - height) > 1 else { return }
+        let delta = height - frame.height
+        frame.origin.y -= delta
+        frame.size.height = height
+        window.setFrame(frame, display: true, animate: true)
+    }
+
+    private func makeActionRow(symbol: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSButton {
+        let button = NSButton(title: "", target: self, action: action)
+        button.isBordered = false
+        button.alignment = .left
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 10
+        button.layer?.backgroundColor = backgroundColor.cgColor
+        button.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+        button.imagePosition = .imageLeft
+        button.imageScaling = .scaleProportionallyDown
+        button.contentTintColor = accent ? accentColor : textColor
+
+        let text = badge == nil ? "  \(title)" : "  \(title)   \(badge!)"
+        button.attributedTitle = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: accent ? accentColor : textColor,
+            ]
+        )
+        button.toolTip = title
+        return button
+    }
+
+    private func makeDetailCard() -> NSView {
+        detailCard.wantsLayer = true
+        detailCard.layer?.backgroundColor = cardColor.cgColor
+        detailCard.layer?.borderColor = borderColor.cgColor
+        detailCard.layer?.borderWidth = 1
+        detailCard.layer?.cornerRadius = 12
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .width
+        stack.spacing = 6
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        detailCard.addSubview(stack)
+
+        detailTitleLabel.font = NSFont.systemFont(ofSize: 15, weight: .bold)
+        detailTitleLabel.textColor = textColor
+        stack.addArrangedSubview(detailTitleLabel)
+
+        panelScrollView.translatesAutoresizingMaskIntoConstraints = false
+        panelScrollView.hasVerticalScroller = true
+        panelScrollView.hasHorizontalScroller = false
+        panelScrollView.drawsBackground = false
+        panelScrollView.borderType = .noBorder
+        panelScrollView.documentView = panelTextView
+        panelScrollView.heightAnchor.constraint(equalToConstant: 154).isActive = true
+        panelTextView.minSize = NSSize(width: 0, height: 0)
+        panelTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        stack.addArrangedSubview(panelScrollView)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: detailCard.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: detailCard.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: detailCard.topAnchor, constant: 10),
+            stack.bottomAnchor.constraint(equalTo: detailCard.bottomAnchor, constant: -10),
+        ])
+
+        return detailCard
+    }
+
+    private func configureTextView(_ textView: NSTextView, size: CGFloat, weight: NSFont.Weight) {
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.textColor = textColor
+        textView.font = NSFont.systemFont(ofSize: size, weight: weight)
+        textView.textContainerInset = NSSize(width: 14, height: 14)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.isHorizontallyResizable = false
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+    }
+
+    private func refreshBadges() {
+        for view in badgeStack.arrangedSubviews {
+            badgeStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+
+        var badges = context.languages.prefix(2).map { $0.name }
+        if badges.isEmpty, let primary = context.primaryLanguage {
+            badges = [primary]
+        }
+        if context.files.contains(where: { $0.lowercased().contains("docker") }) {
+            badges.append("Docker")
+        }
+        if badges.isEmpty {
+            badges = ["GitHub"]
+        }
+
+        for badge in badges.prefix(4) {
+            badgeStack.addArrangedSubview(makeBadge(badge))
+        }
+    }
+
+    private func refreshMeta() {
+        let license = context.license ?? "LICENSE"
+        let updated = formattedDate(context.updatedAt) ?? "Updated just now"
+        metaLabel.stringValue = "LICENSE: \(license)   Updated: \(updated)"
+    }
+
+    private func makeBadge(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        label.textColor = NSColor(calibratedRed: 0.76, green: 0.58, blue: 1.0, alpha: 1)
+        label.alignment = .center
+        label.wantsLayer = true
+        label.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
+        label.layer?.cornerRadius = 14
+        label.widthAnchor.constraint(greaterThanOrEqualToConstant: 78).isActive = true
+        label.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        return label
+    }
+
+    private func makeDivider() -> NSView {
+        let divider = NSView()
+        divider.wantsLayer = true
+        divider.layer?.backgroundColor = NSColor(calibratedRed: 0.78, green: 0.80, blue: 0.84, alpha: 0.80).cgColor
+        divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        return divider
+    }
+
+    private func formattedDate(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: value) else {
+            return value.count >= 10 ? String(value.prefix(10)) : nil
+        }
+
+        let display = DateFormatter()
+        display.locale = Locale(identifier: "en_US_POSIX")
+        display.dateFormat = "MMM d, yyyy"
+        return display.string(from: date)
+    }
+
+    private func clipped(_ value: String, limit: Int) -> String {
+        let cleaned = value.replacingOccurrences(of: "\r", with: "")
+        guard cleaned.count > limit else { return cleaned }
+        let prefix = cleaned.prefix(limit)
+        if let lastSpace = prefix.lastIndex(where: { $0.isWhitespace }) {
+            return String(prefix[..<lastSpace]) + "..."
+        }
+        return String(prefix) + "..."
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+    }
+
+    private func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
+    }
+}
+
+final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegate {
+    private struct Mode {
+        let id: String
+        let title: String
+        let icon: String
+    }
+
+    private let modes = [
+        Mode(id: "overview", title: "Overview", icon: "▦"),
+        Mode(id: "codex", title: "Codex", icon: "◉"),
+        Mode(id: "claude", title: "Claude", icon: "✳︎"),
+        Mode(id: "agents", title: "Agents", icon: "⌁"),
+    ]
+
+    private let repoRef: RepoRef
+    private var context: RepoAnalysisContext
+    private var selectedMode = "overview"
+    private var modeButtons: [String: NSButton] = [:]
+    private var chatTranscript = ""
+    private var chatStarted = false
+
+    private let repoLabel = NSTextField(labelWithString: "")
+    private let metaLabel = NSTextField(labelWithString: "Loading repo metadata...")
+    private let badgeStack = NSStackView()
+    private let statusLabel = NSTextField(labelWithString: "Analyzing...")
+    private let panelTextView = NSTextView()
+    private let panelScrollView = NSScrollView()
+    private let inputRow = NSStackView()
+    private let questionField = NSTextField()
+    private let askButton = NSButton(title: "Ask", target: nil, action: nil)
+
+    private let backgroundColor = NSColor(calibratedRed: 0.07, green: 0.09, blue: 0.12, alpha: 1)
+    private let cardColor = NSColor(calibratedRed: 0.10, green: 0.12, blue: 0.16, alpha: 1)
+    private let textColor = NSColor(calibratedRed: 0.89, green: 0.92, blue: 0.97, alpha: 1)
+    private let mutedTextColor = NSColor(calibratedRed: 0.56, green: 0.60, blue: 0.67, alpha: 1)
+    private let accentColor = NSColor(calibratedRed: 0.55, green: 0.35, blue: 0.96, alpha: 1)
+    private let dividerColor = NSColor(calibratedRed: 0.72, green: 0.75, blue: 0.80, alpha: 0.70)
+    private let greenColor = NSColor(calibratedRed: 0.36, green: 0.86, blue: 0.48, alpha: 1)
+
+    init?(repoURL: String) {
+        guard let repoRef = RepoRef(urlString: repoURL) else { return nil }
+        self.repoRef = repoRef
+        self.context = RepoAnalysisContext(ref: repoRef)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 760),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Ask your GIT"
+        window.minSize = NSSize(width: 430, height: 620)
+        window.center()
+
+        super.init(window: window)
+        buildInterface()
+        loadContext()
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    private func buildInterface() {
+        guard let contentView = window?.contentView else { return }
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = backgroundColor.cgColor
+
+        let root = NSStackView()
+        root.orientation = .vertical
+        root.alignment = .width
+        root.spacing = 10
+        root.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(root)
+
+        NSLayoutConstraint.activate([
+            root.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 22),
+            root.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -22),
+            root.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 18),
+            root.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -18),
+        ])
+
+        repoLabel.stringValue = repoRef.fullName
+        repoLabel.font = NSFont.systemFont(ofSize: 18, weight: .bold)
+        repoLabel.textColor = textColor
+        repoLabel.lineBreakMode = .byTruncatingMiddle
+        root.addArrangedSubview(repoLabel)
+
+        badgeStack.orientation = .horizontal
+        badgeStack.alignment = .leading
+        badgeStack.spacing = 8
+        root.addArrangedSubview(badgeStack)
+
+        metaLabel.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
+        metaLabel.textColor = mutedTextColor
+        metaLabel.lineBreakMode = .byTruncatingTail
+        root.addArrangedSubview(metaLabel)
+
+        root.addArrangedSubview(makeModeBar())
+        root.addArrangedSubview(makeDivider())
+
+        root.addArrangedSubview(makeActionRow(icon: "ℹ", title: "Quick Summary", action: #selector(showQuickSummary)))
+        root.addArrangedSubview(makeActionRow(icon: "●", title: "Ask AI", action: #selector(showAskAI)))
+        root.addArrangedSubview(makeDivider())
+        root.addArrangedSubview(makeActionRow(icon: "◆", title: "Claude Code", action: #selector(openClaudeCode)))
+        root.addArrangedSubview(makeActionRow(icon: "▶", title: "Cursor", action: #selector(openCursor)))
+        root.addArrangedSubview(makeActionRow(icon: "◉", title: "Codex", action: #selector(openCodex)))
+        root.addArrangedSubview(makeActionRow(icon: "+", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+        root.addArrangedSubview(makeDivider())
+        root.addArrangedSubview(makeActionRow(icon: "⚙", title: "Settings", action: #selector(openSettings)))
+        root.addArrangedSubview(makeActionRow(icon: "◈", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
+
+        configureTextView(panelTextView, size: 13, weight: .regular)
+        panelTextView.string = "Choose Quick Summary or Ask AI."
+        root.addArrangedSubview(makePanelScrollView(height: 190))
+        panelScrollView.isHidden = true
+
+        root.addArrangedSubview(configureInputRow())
+        inputRow.isHidden = true
+
+        statusLabel.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        statusLabel.textColor = greenColor
+        root.addArrangedSubview(statusLabel)
+
+        refreshBadges()
+        refreshMeta()
+        renderMode()
+    }
+
+    private func makeModeBar() -> NSView {
+        let bar = NSStackView()
+        bar.orientation = .horizontal
+        bar.alignment = .centerY
+        bar.distribution = .fillEqually
+        bar.spacing = 8
+
+        for mode in modes {
+            let button = NSButton(title: "\(mode.icon)\n\(mode.title)", target: self, action: #selector(selectMode(_:)))
+            button.identifier = NSUserInterfaceItemIdentifier(mode.id)
+            button.isBordered = false
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 10
+            button.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+            button.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            button.heightAnchor.constraint(equalToConstant: 62).isActive = true
+            modeButtons[mode.id] = button
+            bar.addArrangedSubview(button)
+        }
+
+        updateModeButtons()
+        return bar
+    }
+
+    private func configureInputRow() -> NSView {
+        inputRow.orientation = .horizontal
+        inputRow.alignment = .centerY
+        inputRow.spacing = 8
+
+        questionField.placeholderString = "Ask about this repo..."
+        questionField.font = NSFont.systemFont(ofSize: 15)
+        questionField.delegate = self
+        questionField.target = self
+        questionField.action = #selector(askQuestion)
+        questionField.wantsLayer = true
+        questionField.layer?.backgroundColor = NSColor(calibratedRed: 0.92, green: 0.93, blue: 0.95, alpha: 1).cgColor
+        questionField.layer?.cornerRadius = 7
+        questionField.layer?.borderWidth = 2
+        questionField.layer?.borderColor = accentColor.cgColor
+        questionField.heightAnchor.constraint(equalToConstant: 38).isActive = true
+
+        askButton.target = self
+        askButton.action = #selector(askQuestion)
+        askButton.bezelStyle = .rounded
+        askButton.keyEquivalent = "\r"
+        askButton.wantsLayer = true
+        askButton.layer?.backgroundColor = accentColor.cgColor
+        askButton.layer?.cornerRadius = 9
+        askButton.attributedTitle = NSAttributedString(
+            string: "Ask",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 15, weight: .bold),
+                .foregroundColor: NSColor.white,
+            ]
+        )
+        askButton.widthAnchor.constraint(equalToConstant: 66).isActive = true
+        askButton.heightAnchor.constraint(equalToConstant: 38).isActive = true
+
+        inputRow.addArrangedSubview(questionField)
+        inputRow.addArrangedSubview(askButton)
+        questionField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return inputRow
+    }
+
+    private func loadContext() {
+        statusLabel.stringValue = "Analyzing..."
+
+        Task {
+            do {
+                let loaded = try await GitHubRepoLoader.fetch(ref: repoRef)
+                await MainActor.run {
+                    self.context = loaded
+                    self.statusLabel.stringValue = "Ready"
+                    self.refreshBadges()
+                    self.refreshMeta()
                     self.renderMode()
-                    self.appendAssistant("I could not fetch GitHub API context. I can still answer from the repo URL, but the analysis is limited.")
+                }
+            } catch {
+                await MainActor.run {
+                    self.statusLabel.stringValue = "Offline context"
+                    self.refreshBadges()
+                    self.refreshMeta()
+                    self.renderMode()
                 }
             }
         }
@@ -760,7 +1354,7 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
             button.attributedTitle = NSAttributedString(
                 string: "\(mode.icon)\n\(mode.title)",
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+                    .font: NSFont.systemFont(ofSize: 12, weight: .bold),
                     .foregroundColor: selected ? NSColor.white : textColor,
                     .paragraphStyle: centeredParagraphStyle(),
                 ]
@@ -771,7 +1365,7 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
     private func renderMode() {
         switch selectedMode {
         case "codex":
-            mainTextView.string = """
+            showPanel("""
             Codex
 
             Use this repo with Codex when you want implementation work, bug fixes, tests, or a local agent session.
@@ -783,9 +1377,9 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
             - Stack: \(context.languageSummary)
             - Root files: \(context.files.prefix(18).joined(separator: ", "))
             - README signal: \(String(context.readmeSignal.prefix(420)))
-            """
+            """, input: false)
         case "claude":
-            mainTextView.string = """
+            showPanel("""
             Claude
 
             Use Claude for deeper repo reasoning, long-context review, refactoring plans, and README-driven setup.
@@ -796,9 +1390,9 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
             Signals:
             - Description: \(context.description ?? "No GitHub description.")
             - Languages: \(context.languageSummary)
-            """
+            """, input: false)
         case "agents":
-            mainTextView.string = """
+            showPanel("""
             Agent Handoff
 
             Good agent task:
@@ -809,15 +1403,10 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
             2. Runtime assumptions and env vars.
             3. UI paths that depend on browser timing.
             4. Tests or smoke checks for the main workflow.
-            """
-        case "readme":
-            mainTextView.string = """
-            README Signal
-
-            \(context.readmeSignal)
-            """
+            """, input: false)
         default:
-            mainTextView.string = overviewText()
+            panelScrollView.isHidden = true
+            inputRow.isHidden = true
         }
     }
 
@@ -844,10 +1433,26 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
         """
     }
 
+    @objc private func showQuickSummary() {
+        showPanel(overviewText(), input: false)
+    }
+
+    @objc private func showAskAI() {
+        if !chatStarted {
+            chatTranscript = "Ask your GIT:\nReady. I analyzed \(context.ref.fullName). Ask about weak points, setup, stack, files, or next actions.\n"
+            chatStarted = true
+        }
+        showPanel(chatTranscript, input: true)
+        questionField.becomeFirstResponder()
+    }
+
     @objc private func askQuestion() {
         let question = questionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !question.isEmpty else { return }
 
+        if !chatStarted {
+            showAskAI()
+        }
         questionField.stringValue = ""
         appendUser(question)
         appendAssistant(answer(for: question))
@@ -926,10 +1531,73 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
     }
 
     private func appendMessage(_ sender: String, _ text: String) {
-        let current = messagesTextView.string
+        let current = chatTranscript
         let separator = current.hasSuffix("\n") ? "" : "\n"
-        messagesTextView.string = current + separator + "\n\(sender):\n\(text)\n"
-        messagesTextView.scrollToEndOfDocument(nil)
+        chatTranscript = current + separator + "\n\(sender):\n\(text)\n"
+        showPanel(chatTranscript, input: true)
+        panelTextView.scrollToEndOfDocument(nil)
+    }
+
+    @objc private func openClaudeCode() {
+        sendTerminalCommand("claude \"Analyze \(context.ref.url). Summarize the repo, weak points, setup path, and first implementation step.\"")
+    }
+
+    @objc private func openCodex() {
+        sendTerminalCommand("codex \"Analyze \(context.ref.url). Identify stack, risks, setup path, and next engineering action.\"")
+    }
+
+    @objc private func openCursor() {
+        let value = "cursor://vscode.git/clone?url=\(context.ref.url).git"
+        if let url = URL(string: value) {
+            NSWorkspace.shared.open(url)
+            statusLabel.stringValue = "Opening Cursor..."
+        }
+    }
+
+    @objc private func addCustomTool() {
+        showInlineNotice("Custom tools are in the browser extension today. Native custom tools are the next prototype step.")
+    }
+
+    @objc private func openSettings() {
+        showInlineNotice("Bridge is installed. Use the menu item Install Browser Bridge to refresh native messaging.")
+    }
+
+    @objc private func shareRepo() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("🎲 \(context.ref.fullName) \(context.ref.url)", forType: .string)
+        statusLabel.stringValue = "Share copied"
+    }
+
+    private func sendTerminalCommand(_ command: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        let script = """
+        tell application "Terminal"
+          activate
+          if (count of windows) > 0 then
+            do script \(appleScriptString(command)) in front window
+          else
+            do script \(appleScriptString(command))
+          end if
+        end tell
+        """
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        try? process.run()
+        statusLabel.stringValue = "Sent to Terminal"
+    }
+
+    private func showInlineNotice(_ text: String) {
+        showPanel(text, input: false)
+        statusLabel.stringValue = "Ready"
+    }
+
+    private func showPanel(_ text: String, input: Bool) {
+        panelTextView.string = text
+        panelScrollView.isHidden = false
+        inputRow.isHidden = !input
     }
 
     private func configureTextView(_ textView: NSTextView, size: CGFloat, weight: NSFont.Weight) {
@@ -946,21 +1614,20 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
         textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
     }
 
-    private func makeScrollCard(_ textView: NSTextView, height: CGFloat) -> NSScrollView {
-        let scroll = NSScrollView()
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.hasVerticalScroller = true
-        scroll.hasHorizontalScroller = false
-        scroll.drawsBackground = false
-        scroll.borderType = .noBorder
-        scroll.documentView = textView
-        scroll.wantsLayer = true
-        scroll.layer?.backgroundColor = cardColor.cgColor
-        scroll.layer?.cornerRadius = 12
-        scroll.heightAnchor.constraint(equalToConstant: height).isActive = true
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        return scroll
+    private func makePanelScrollView(height: CGFloat) -> NSScrollView {
+        panelScrollView.translatesAutoresizingMaskIntoConstraints = false
+        panelScrollView.hasVerticalScroller = true
+        panelScrollView.hasHorizontalScroller = false
+        panelScrollView.drawsBackground = false
+        panelScrollView.borderType = .noBorder
+        panelScrollView.documentView = panelTextView
+        panelScrollView.wantsLayer = true
+        panelScrollView.layer?.backgroundColor = cardColor.cgColor
+        panelScrollView.layer?.cornerRadius = 12
+        panelScrollView.heightAnchor.constraint(equalToConstant: height).isActive = true
+        panelTextView.minSize = NSSize(width: 0, height: 0)
+        panelTextView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        return panelScrollView
     }
 
     private func makeCard() -> NSView {
@@ -974,9 +1641,76 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
     private func makeDivider() -> NSView {
         let divider = NSView()
         divider.wantsLayer = true
-        divider.layer?.backgroundColor = NSColor(calibratedRed: 0.56, green: 0.56, blue: 0.54, alpha: 1).cgColor
+        divider.layer?.backgroundColor = dividerColor.cgColor
         divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return divider
+    }
+
+    private func makeActionRow(icon: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSButton {
+        let button = NSButton(title: "", target: self, action: action)
+        button.isBordered = false
+        button.alignment = .left
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 10
+        button.layer?.backgroundColor = NSColor.clear.cgColor
+        button.heightAnchor.constraint(equalToConstant: 46).isActive = true
+
+        let text = badge == nil ? "\(icon)   \(title)" : "\(icon)   \(title)   \(badge!)"
+        let color = accent ? accentColor : textColor
+        button.attributedTitle = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: color,
+            ]
+        )
+        return button
+    }
+
+    private func refreshBadges() {
+        for view in badgeStack.arrangedSubviews {
+            badgeStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+
+        var badges = context.languages.prefix(3).map(\.name)
+        if badges.isEmpty, let primary = context.primaryLanguage {
+            badges = [primary]
+        }
+        if context.files.contains("Dockerfile") || context.files.contains("docker-compose.yml") {
+            badges.append("Docker")
+        }
+        if badges.isEmpty {
+            badges = ["GitHub"]
+        }
+
+        for badge in badges.prefix(4) {
+            badgeStack.addArrangedSubview(makeBadge(badge))
+        }
+    }
+
+    private func refreshMeta() {
+        let license = context.license ?? "LICENSE"
+        let updated = formattedDate(context.updatedAt) ?? "Updated just now"
+        metaLabel.stringValue = "⚖ \(license)   ·   ⏱ \(updated)"
+    }
+
+    private func makeBadge(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        label.textColor = NSColor(calibratedRed: 0.76, green: 0.58, blue: 1.0, alpha: 1)
+        label.alignment = .center
+        label.wantsLayer = true
+        label.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
+        label.layer?.cornerRadius = 14
+        label.widthAnchor.constraint(greaterThanOrEqualToConstant: 78).isActive = true
+        label.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        return label
+    }
+
+    private func formattedDate(_ value: String?) -> String? {
+        guard let value, value.count >= 10 else { return nil }
+        return String(value.prefix(10))
     }
 
     private func makeLabel(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor) -> NSTextField {
@@ -992,6 +1726,13 @@ final class RepoAnalysisWindowController: NSWindowController, NSTextFieldDelegat
         let style = NSMutableParagraphStyle()
         style.alignment = .center
         return style
+    }
+
+    private func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 }
 
