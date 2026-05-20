@@ -16,17 +16,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Ask your GIT Companion", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Install Browser Bridge", action: #selector(installBridge), keyEquivalent: "i"))
-        menu.addItem(NSMenuItem(title: "Analyze Current Repo", action: #selector(analyzeCurrentRepo), keyEquivalent: "a"))
-        menu.addItem(NSMenuItem(title: "Open Extension Folder", action: #selector(openExtensionFolder), keyEquivalent: "o"))
+        menu.addItem(makeMenuItem(title: "Install Browser Bridge", action: #selector(installBridge), key: "i"))
+        menu.addItem(makeMenuItem(title: "Analyze Current Repo", action: #selector(analyzeCurrentRepo), key: "a"))
+        menu.addItem(makeMenuItem(title: "Open Extension Folder", action: #selector(openExtensionFolder), key: "o"))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(makeMenuItem(title: "Quit", action: #selector(quit), key: "q"))
         item.menu = menu
         statusItem = item
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.installBridge()
         }
+    }
+
+    private func makeMenuItem(title: String, action: Selector, key: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        return item
     }
 
     @objc private func installBridge() {
@@ -105,6 +111,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         else if frontApp is "Safari" then
           tell application "Safari" to return URL of current tab of front window
         else
+          set browserApps to {"Google Chrome", "Brave Browser", "Microsoft Edge", "Arc", "Safari"}
+          repeat with browserApp in browserApps
+            tell application "System Events"
+              set isRunning to exists application process (browserApp as text)
+            end tell
+            if isRunning then
+              try
+                if (browserApp as text) is "Safari" then
+                  tell application "Safari"
+                    if (count of windows) > 0 then return URL of current tab of front window
+                  end tell
+                else
+                  tell application (browserApp as text)
+                    if (count of windows) > 0 then return URL of active tab of front window
+                  end tell
+                end if
+              end try
+            end if
+          end repeat
           return ""
         end if
         """
