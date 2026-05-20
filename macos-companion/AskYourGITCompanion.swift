@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func analyzeCurrentRepo() {
-        let url = currentBrowserURL()
+        let url = currentRepoURL()
         guard let url, isRepoURL(url) else {
             show("No repo detected", "Open a GitHub, GitLab, or Bitbucket repository in your browser, then choose this again.")
             return
@@ -101,7 +101,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    private func currentBrowserURL() -> String? {
+    private func currentRepoURL() -> String? {
+        if let activeURL = activeBrowserURL(), isRepoURL(activeURL) {
+            return activeURL
+        }
+
+        return allRepoURLs().first(where: isRepoURL)
+    }
+
+    private func activeBrowserURL() -> String? {
         let script = """
         tell application "System Events"
           set frontApp to name of first application process whose frontmost is true
@@ -111,29 +119,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         else if frontApp is "Safari" then
           tell application "Safari" to return URL of current tab of front window
         else
-          set browserApps to {"Google Chrome", "Brave Browser", "Microsoft Edge", "Arc", "Safari"}
-          repeat with browserApp in browserApps
-            tell application "System Events"
-              set isRunning to exists application process (browserApp as text)
-            end tell
-            if isRunning then
-              try
-                if (browserApp as text) is "Safari" then
-                  tell application "Safari"
-                    if (count of windows) > 0 then return URL of current tab of front window
-                  end tell
-                else
-                  tell application (browserApp as text)
-                    if (count of windows) > 0 then return URL of active tab of front window
-                  end tell
-                end if
-              end try
-            end if
-          end repeat
           return ""
         end if
         """
 
+        return runAppleScript(script)
+    }
+
+    private func allRepoURLs() -> [String] {
+        let script = """
+        set collectedURLs to {}
+        set browserApps to {"Google Chrome", "Brave Browser", "Microsoft Edge", "Safari"}
+
+        repeat with browserApp in browserApps
+          tell application "System Events"
+            set isRunning to exists application process (browserApp as text)
+          end tell
+
+          if isRunning then
+            try
+              if (browserApp as text) is "Safari" then
+                tell application "Safari"
+                  repeat with browserWindow in windows
+                    repeat with browserTab in tabs of browserWindow
+                      set tabURL to URL of browserTab
+                      if my isRepoURL(tabURL) then set end of collectedURLs to tabURL
+                    end repeat
+                  end repeat
+                end tell
+              else
+                tell application (browserApp as text)
+                  repeat with browserWindow in windows
+                    repeat with browserTab in tabs of browserWindow
+                      set tabURL to URL of browserTab
+                      if my isRepoURL(tabURL) then set end of collectedURLs to tabURL
+                    end repeat
+                  end repeat
+                end tell
+              end if
+            end try
+          end if
+        end repeat
+
+        set AppleScript's text item delimiters to linefeed
+        return collectedURLs as text
+
+        on isRepoURL(candidateURL)
+          if candidateURL starts with "https://github.com/" or candidateURL starts with "http://github.com/" or candidateURL starts with "https://gitlab.com/" or candidateURL starts with "http://gitlab.com/" or candidateURL starts with "https://bitbucket.org/" or candidateURL starts with "http://bitbucket.org/" then
+            set oldDelimiters to AppleScript's text item delimiters
+            set AppleScript's text item delimiters to "/"
+            set urlParts to text items of candidateURL
+            set AppleScript's text item delimiters to oldDelimiters
+            if (count of urlParts) is greater than or equal to 5 then return true
+          end if
+          return false
+        end isRepoURL
+        """
+
+        return runAppleScript(script)?
+            .split(separator: "\n")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty } ?? []
+    }
+
+    private func runAppleScript(_ script: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", script]
