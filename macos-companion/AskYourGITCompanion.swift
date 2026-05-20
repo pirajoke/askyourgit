@@ -2,7 +2,7 @@ import Cocoa
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var repoWindowController: CompactRepoAnalysisWindowController?
+    private var repoWindowController: ReferenceRepoAnalysisWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url, forType: .string)
 
-        guard let controller = CompactRepoAnalysisWindowController(repoURL: url) else {
+        guard let controller = ReferenceRepoAnalysisWindowController(repoURL: url) else {
             show("No repo detected", "Could not parse the repository URL.")
             return
         }
@@ -637,6 +637,680 @@ private final class CompactActionRow: NSControl {
 
     override func mouseDown(with event: NSEvent) {
         sendAction(action, to: target)
+    }
+}
+
+final class ReferenceRepoAnalysisWindowController: NSWindowController, NSTextFieldDelegate {
+    private let repoRef: RepoRef
+    private var context: RepoAnalysisContext
+    private var selectedTab = "overview"
+    private var chatTranscript = ""
+    private var chatStarted = false
+    private var tabButtons: [String: NSButton] = [:]
+    private var bodyConstraints: [NSLayoutConstraint] = []
+    private weak var lastBodyView: NSView?
+
+    private let bodyContainer = NSView()
+    private let detailCard = NSView()
+    private let detailTitleLabel = NSTextField(labelWithString: "")
+    private let panelTextView = NSTextView()
+    private let panelScrollView = NSScrollView()
+    private let inputRow = NSStackView()
+    private let questionField = NSTextField()
+    private let askButton = NSButton(title: "Ask", target: nil, action: nil)
+
+    private let backgroundColor = NSColor(calibratedRed: 0.07, green: 0.09, blue: 0.12, alpha: 1)
+    private let cardColor = NSColor(calibratedRed: 0.10, green: 0.12, blue: 0.16, alpha: 1)
+    private let borderColor = NSColor(calibratedRed: 0.22, green: 0.25, blue: 0.31, alpha: 1)
+    private let textColor = NSColor(calibratedRed: 0.90, green: 0.93, blue: 0.98, alpha: 1)
+    private let mutedTextColor = NSColor(calibratedRed: 0.58, green: 0.62, blue: 0.70, alpha: 1)
+    private let accentColor = NSColor(calibratedRed: 0.57, green: 0.36, blue: 0.98, alpha: 1)
+    private let orangeColor = NSColor(calibratedRed: 1.00, green: 0.49, blue: 0.06, alpha: 1)
+    private let greenColor = NSColor(calibratedRed: 0.36, green: 0.86, blue: 0.49, alpha: 1)
+
+    init?(repoURL: String) {
+        guard let repoRef = RepoRef(urlString: repoURL) else { return nil }
+        self.repoRef = repoRef
+        self.context = RepoAnalysisContext(ref: repoRef)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 640),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Ask your GIT"
+        window.backgroundColor = backgroundColor
+        window.contentMinSize = NSSize(width: 430, height: 640)
+        window.contentMaxSize = NSSize(width: 430, height: 780)
+        window.center()
+
+        super.init(window: window)
+        buildInterface()
+        loadContext()
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    private func buildInterface() {
+        guard let contentView = window?.contentView else { return }
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = backgroundColor.cgColor
+
+        let tabBar = makeTabBar()
+        tabBar.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(tabBar)
+
+        let divider = makeDivider()
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(divider)
+
+        bodyContainer.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(bodyContainer)
+
+        NSLayoutConstraint.activate([
+            tabBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18),
+            tabBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -18),
+            tabBar.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            tabBar.heightAnchor.constraint(equalToConstant: 74),
+
+            divider.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18),
+            divider.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -18),
+            divider.topAnchor.constraint(equalTo: tabBar.bottomAnchor, constant: 10),
+
+            bodyContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 22),
+            bodyContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -22),
+            bodyContainer.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 14),
+            bodyContainer.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -18),
+        ])
+
+        configureTextView(panelTextView, size: 13, weight: .regular)
+        configureInputRow()
+        selectTab("overview")
+    }
+
+    private func makeTabBar() -> NSStackView {
+        let bar = NSStackView()
+        bar.orientation = .horizontal
+        bar.alignment = .centerY
+        bar.distribution = .fillEqually
+        bar.spacing = 8
+
+        let tabs = [
+            ("overview", "square.grid.2x2.fill", "Overview"),
+            ("codex", "circle.hexagongrid.fill", "Codex"),
+            ("claude", "sparkle", "Claude"),
+            ("cursor", "play.fill", "Cursor"),
+            ("tools", "arrow.left.arrow.right", "Tools"),
+        ]
+
+        for tab in tabs {
+            let button = NSButton(title: tab.2, target: self, action: #selector(tabClicked(_:)))
+            button.identifier = NSUserInterfaceItemIdentifier(tab.0)
+            button.isBordered = false
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 10
+            button.image = NSImage(systemSymbolName: tab.1, accessibilityDescription: tab.2)
+            button.imagePosition = .imageAbove
+            button.imageScaling = .scaleProportionallyDown
+            button.heightAnchor.constraint(equalToConstant: 66).isActive = true
+            tabButtons[tab.0] = button
+            bar.addArrangedSubview(button)
+        }
+
+        return bar
+    }
+
+    @objc private func tabClicked(_ sender: NSButton) {
+        selectTab(sender.identifier?.rawValue ?? "overview")
+    }
+
+    private func selectTab(_ id: String) {
+        selectedTab = id
+        updateTabs()
+        render()
+    }
+
+    private func updateTabs() {
+        let titles = [
+            "overview": "Overview",
+            "codex": "Codex",
+            "claude": "Claude",
+            "cursor": "Cursor",
+            "tools": "Tools",
+        ]
+
+        for (id, button) in tabButtons {
+            let selected = id == selectedTab
+            button.layer?.backgroundColor = selected ? orangeColor.cgColor : NSColor.clear.cgColor
+            button.contentTintColor = selected ? NSColor.white : mutedTextColor
+            button.attributedTitle = NSAttributedString(
+                string: titles[id] ?? id,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+                    .foregroundColor: selected ? NSColor.white : mutedTextColor,
+                ]
+            )
+        }
+    }
+
+    private func render() {
+        clearBody()
+        resizeWindow(height: 640)
+
+        switch selectedTab {
+        case "codex":
+            renderTool(title: "Codex", symbol: "circle.hexagongrid.fill", runTitle: "Run Codex", action: #selector(openCodex))
+        case "claude":
+            renderTool(title: "Claude Code", symbol: "sparkle", runTitle: "Run Claude Code", action: #selector(openClaudeCode))
+        case "cursor":
+            renderTool(title: "Cursor", symbol: "play.fill", runTitle: "Open in Cursor", action: #selector(openCursor))
+        case "tools":
+            addBodyView(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+            addBodyView(makeDivider(), top: 8)
+            addBodyView(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)), top: 8)
+            addBodyView(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
+        default:
+            addBodyView(makeHeader())
+            addBodyView(makeDivider(), top: 10)
+            addBodyView(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)), top: 8)
+            addBodyView(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
+            addBodyView(makeDivider(), top: 8)
+            addBodyView(makeActionRow(symbol: "diamond.fill", title: "Claude Code", action: #selector(openClaudeCode)), top: 8)
+            addBodyView(makeActionRow(symbol: "play.fill", title: "Cursor", action: #selector(openCursor)))
+            addBodyView(makeActionRow(symbol: "circle.hexagongrid.fill", title: "Codex", action: #selector(openCodex)))
+            addBodyView(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+            addBodyView(makeDivider(), top: 8)
+            addBodyView(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)), top: 8)
+            addBodyView(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
+        }
+    }
+
+    private func renderTool(title: String, symbol: String, runTitle: String, action: Selector) {
+        addBodyView(makeToolHero(title: title, symbol: symbol))
+        addBodyView(makeActionRow(symbol: "return", title: runTitle, action: action), top: 10)
+        addBodyView(makeActionRow(symbol: "doc.on.doc", title: "Copy repo URL", action: #selector(copyRepoURL)))
+        addBodyView(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)))
+        addBodyView(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
+    }
+
+    private func clearBody() {
+        NSLayoutConstraint.deactivate(bodyConstraints)
+        bodyConstraints.removeAll()
+        for view in bodyContainer.subviews {
+            view.removeFromSuperview()
+        }
+        lastBodyView = nil
+        detailCard.removeFromSuperview()
+        inputRow.removeFromSuperview()
+    }
+
+    private func addBodyView(_ view: NSView, top: CGFloat = 0) {
+        view.translatesAutoresizingMaskIntoConstraints = false
+        bodyContainer.addSubview(view)
+        let topAnchor = lastBodyView?.bottomAnchor ?? bodyContainer.topAnchor
+        let constraints = [
+            view.leadingAnchor.constraint(equalTo: bodyContainer.leadingAnchor),
+            view.trailingAnchor.constraint(equalTo: bodyContainer.trailingAnchor),
+            view.topAnchor.constraint(equalTo: topAnchor, constant: top),
+        ]
+        NSLayoutConstraint.activate(constraints)
+        bodyConstraints.append(contentsOf: constraints)
+        lastBodyView = view
+    }
+
+    private func makeHeader() -> NSView {
+        let header = NSView()
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.heightAnchor.constraint(equalToConstant: 140).isActive = true
+
+        let badges = NSStackView()
+        badges.orientation = .horizontal
+        badges.alignment = .leading
+        badges.spacing = 8
+        badges.translatesAutoresizingMaskIntoConstraints = false
+        header.addSubview(badges)
+        currentBadges().forEach { badges.addArrangedSubview(makeBadge($0)) }
+
+        let metaLabel = makeLabel("LICENSE: \(context.license ?? "LICENSE")   Updated: \(formattedDate(context.updatedAt) ?? "Updated just now")", size: 13, weight: .semibold, color: mutedTextColor)
+        let repoLabel = makeLabel(context.ref.fullName, size: 20, weight: .bold, color: textColor)
+        let urlLabel = makeLabel(context.ref.url, size: 12, weight: .medium, color: mutedTextColor)
+        let statusLabel = makeLabel("Ready", size: 13, weight: .bold, color: greenColor)
+
+        [metaLabel, repoLabel, urlLabel, statusLabel].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            header.addSubview($0)
+        }
+
+        NSLayoutConstraint.activate([
+            badges.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            badges.topAnchor.constraint(equalTo: header.topAnchor),
+
+            metaLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            metaLabel.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            metaLabel.topAnchor.constraint(equalTo: badges.bottomAnchor, constant: 12),
+
+            repoLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            repoLabel.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            repoLabel.topAnchor.constraint(equalTo: metaLabel.bottomAnchor, constant: 8),
+
+            urlLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            urlLabel.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+            urlLabel.topAnchor.constraint(equalTo: repoLabel.bottomAnchor, constant: 8),
+
+            statusLabel.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            statusLabel.topAnchor.constraint(equalTo: urlLabel.bottomAnchor, constant: 8),
+        ])
+
+        return header
+    }
+
+    private func configureInputRow() {
+        inputRow.orientation = .horizontal
+        inputRow.alignment = .centerY
+        inputRow.spacing = 8
+        inputRow.heightAnchor.constraint(equalToConstant: 40).isActive = true
+
+        questionField.placeholderString = "Ask about this repo..."
+        questionField.font = NSFont.systemFont(ofSize: 14)
+        questionField.textColor = textColor
+        questionField.backgroundColor = cardColor
+        questionField.isBezeled = false
+        questionField.isBordered = false
+        questionField.drawsBackground = true
+        questionField.delegate = self
+        questionField.target = self
+        questionField.action = #selector(askQuestion)
+        questionField.wantsLayer = true
+        questionField.layer?.backgroundColor = cardColor.cgColor
+        questionField.layer?.cornerRadius = 8
+        questionField.layer?.borderWidth = 1
+        questionField.layer?.borderColor = accentColor.cgColor
+
+        askButton.target = self
+        askButton.action = #selector(askQuestion)
+        askButton.isBordered = false
+        askButton.wantsLayer = true
+        askButton.layer?.backgroundColor = orangeColor.cgColor
+        askButton.layer?.cornerRadius = 9
+        askButton.attributedTitle = NSAttributedString(
+            string: "Ask",
+            attributes: [.font: NSFont.systemFont(ofSize: 15, weight: .bold), .foregroundColor: NSColor.white]
+        )
+        askButton.widthAnchor.constraint(equalToConstant: 64).isActive = true
+
+        inputRow.addArrangedSubview(questionField)
+        inputRow.addArrangedSubview(askButton)
+        questionField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    }
+
+    private func loadContext() {
+        Task {
+            do {
+                let loaded = try await GitHubRepoLoader.fetch(ref: repoRef)
+                await MainActor.run {
+                    self.context = loaded
+                    self.render()
+                }
+            } catch {
+                await MainActor.run {
+                    self.render()
+                }
+            }
+        }
+    }
+
+    @objc private func showQuickSummary() {
+        showDetail(title: "Quick Summary", body: overviewText(), showsInput: false)
+    }
+
+    @objc private func showAskAI() {
+        if !chatStarted {
+            chatTranscript = """
+            Ask your GIT:
+            Ready. I analyzed \(context.ref.fullName).
+
+            Ask about weak points, setup, stack, files, architecture, or next actions.
+            """
+            chatStarted = true
+        }
+        showDetail(title: "Ask AI", body: chatTranscript, showsInput: true)
+        window?.makeFirstResponder(questionField)
+    }
+
+    @objc private func askQuestion() {
+        let question = questionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !question.isEmpty else { return }
+        if !chatStarted { showAskAI() }
+        questionField.stringValue = ""
+        appendMessage("You", question)
+        appendMessage("Ask your GIT", answer(for: question))
+    }
+
+    private func showDetail(title: String, body: String, showsInput: Bool) {
+        removeDetailViews()
+        resizeWindow(height: showsInput ? 760 : 720)
+        detailTitleLabel.stringValue = title
+        panelTextView.string = body
+        addBodyView(makeDetailCard(), top: 10)
+        if showsInput {
+            addBodyView(inputRow, top: 8)
+        }
+    }
+
+    private func removeDetailViews() {
+        if detailCard.superview != nil {
+            detailCard.removeFromSuperview()
+        }
+        if inputRow.superview != nil {
+            inputRow.removeFromSuperview()
+        }
+    }
+
+    private func appendMessage(_ sender: String, _ text: String) {
+        let separator = chatTranscript.hasSuffix("\n") ? "" : "\n"
+        chatTranscript = chatTranscript + separator + "\n\(sender):\n\(text)\n"
+        showDetail(title: "Ask AI", body: chatTranscript, showsInput: true)
+        panelTextView.scrollToEndOfDocument(nil)
+    }
+
+    private func overviewText() -> String {
+        """
+        \(context.description ?? "No GitHub description available.")
+
+        Repository:
+        \(context.ref.fullName)
+
+        Stack:
+        \(context.languageSummary)
+
+        Signals:
+        Stars: \(context.stars.map { String($0) } ?? "unknown")
+        Forks: \(context.forks.map { String($0) } ?? "unknown")
+        License: \(context.license ?? "unknown")
+        Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(12).joined(separator: ", "))
+
+        Root files:
+        \(context.files.prefix(28).joined(separator: ", "))
+
+        README signal:
+        \(clipped(context.readmeSignal, limit: 780))
+        """
+    }
+
+    private func answer(for question: String) -> String {
+        let lower = question.lowercased()
+        if lower.contains("weak") || lower.contains("risk") || lower.contains("problem") || lower.contains("issue") || lower.contains("bug") || lower.contains("риск") || lower.contains("проблем") {
+            return """
+            Weak points to inspect first:
+
+            1. Setup reliability: can a new user run it from README only?
+            2. Runtime assumptions: env vars, local services, auth, and browser permissions.
+            3. Tests for the main workflow.
+            4. UI timing: anything that depends on page reloads or active browser state.
+
+            Stack signal:
+            \(context.languageSummary)
+            """
+        }
+        if lower.contains("install") || lower.contains("run") || lower.contains("setup") || lower.contains("установ") || lower.contains("запуск") {
+            return """
+            Practical setup path:
+
+            1. Clone \(context.ref.url)
+            2. Read README first.
+            3. Inspect root files: \(context.files.prefix(16).joined(separator: ", "))
+            4. If package.json exists, check scripts for dev, build, and test commands.
+            """
+        }
+        if lower.contains("file") || lower.contains("structure") || lower.contains("архит") || lower.contains("файл") || lower.contains("структ") {
+            return "Root structure:\n\n\(context.files.prefix(42).joined(separator: ", "))"
+        }
+        if lower.contains("stack") || lower.contains("language") || lower.contains("tech") || lower.contains("язык") || lower.contains("стек") {
+            return "Detected stack:\n\n\(context.languageSummary)\n\nPrimary language: \(context.primaryLanguage ?? "unknown")."
+        }
+        return """
+        Summary:
+        \(context.description ?? "No GitHub description available.")
+
+        Key signals:
+        - Languages: \(context.languageSummary)
+        - Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(10).joined(separator: ", "))
+        - Root files: \(context.files.prefix(18).joined(separator: ", "))
+        """
+    }
+
+    @objc private func openClaudeCode() {
+        sendTerminalCommand("claude \"Analyze \(context.ref.url). Summarize the repo, weak points, setup path, and first implementation step.\"")
+    }
+
+    @objc private func openCodex() {
+        sendTerminalCommand("codex \"Analyze \(context.ref.url). Identify stack, risks, setup path, and next engineering action.\"")
+    }
+
+    @objc private func openCursor() {
+        let repo = "\(context.ref.url).git"
+        let encodedRepo = repo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? repo
+        let value = "cursor://vscode.git/clone?url=\(encodedRepo)"
+        if let url = URL(string: value), NSWorkspace.shared.open(url) {
+            return
+        }
+        copyToPasteboard(repo)
+    }
+
+    @objc private func addCustomTool() {
+        showDetail(title: "Custom Tool", body: "Prototype slot for a custom local command template.", showsInput: false)
+    }
+
+    @objc private func openSettings() {
+        showDetail(title: "Settings", body: "Desktop companion: Connected\nBridge: installed from the menu bar app\nRepo detection: active browser tab", showsInput: false)
+    }
+
+    @objc private func shareRepo() {
+        copyToPasteboard("\(context.ref.fullName) \(context.ref.url)")
+    }
+
+    @objc private func copyRepoURL() {
+        copyToPasteboard(context.ref.url)
+    }
+
+    private func sendTerminalCommand(_ command: String) {
+        copyToPasteboard(command)
+        let script = """
+        tell application "Terminal"
+          activate
+          if (count of windows) > 0 then
+            do script \(appleScriptString(command)) in front window
+          else
+            do script \(appleScriptString(command))
+          end if
+        end tell
+        """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        try? process.run()
+    }
+
+    private func makeActionRow(symbol: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSView {
+        CompactActionRow(symbol: symbol, title: title, badge: badge, accent: accent, target: self, action: action)
+    }
+
+    private func makeToolHero(title: String, symbol: String) -> NSView {
+        let hero = NSView()
+        hero.wantsLayer = true
+        hero.layer?.backgroundColor = cardColor.cgColor
+        hero.layer?.cornerRadius = 10
+        hero.heightAnchor.constraint(equalToConstant: 70).isActive = true
+
+        let icon = NSImageView()
+        icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+        icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 24, weight: .semibold)
+        icon.contentTintColor = textColor
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        hero.addSubview(icon)
+
+        let titleLabel = makeLabel(title, size: 18, weight: .bold, color: textColor)
+        let subtitle = makeLabel("Analyze \(context.ref.fullName) with this tool.", size: 12, weight: .medium, color: mutedTextColor)
+        [titleLabel, subtitle].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            hero.addSubview($0)
+        }
+
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: hero.leadingAnchor, constant: 12),
+            icon.centerYAnchor.constraint(equalTo: hero.centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 34),
+            icon.heightAnchor.constraint(equalToConstant: 34),
+            titleLabel.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: hero.trailingAnchor, constant: -12),
+            titleLabel.topAnchor.constraint(equalTo: hero.topAnchor, constant: 16),
+            subtitle.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitle.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            subtitle.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+        ])
+        return hero
+    }
+
+    private func makeDetailCard() -> NSView {
+        if detailCard.subviews.isEmpty {
+            detailCard.wantsLayer = true
+            detailCard.layer?.backgroundColor = cardColor.cgColor
+            detailCard.layer?.borderColor = borderColor.cgColor
+            detailCard.layer?.borderWidth = 1
+            detailCard.layer?.cornerRadius = 12
+            detailCard.heightAnchor.constraint(equalToConstant: 180).isActive = true
+
+            let stack = NSStackView()
+            stack.orientation = .vertical
+            stack.alignment = .width
+            stack.spacing = 6
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            detailCard.addSubview(stack)
+
+            detailTitleLabel.font = NSFont.systemFont(ofSize: 15, weight: .bold)
+            detailTitleLabel.textColor = textColor
+            stack.addArrangedSubview(detailTitleLabel)
+
+            panelScrollView.hasVerticalScroller = true
+            panelScrollView.hasHorizontalScroller = false
+            panelScrollView.drawsBackground = false
+            panelScrollView.borderType = .noBorder
+            panelScrollView.documentView = panelTextView
+            panelScrollView.heightAnchor.constraint(equalToConstant: 142).isActive = true
+            stack.addArrangedSubview(panelScrollView)
+
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(equalTo: detailCard.leadingAnchor, constant: 12),
+                stack.trailingAnchor.constraint(equalTo: detailCard.trailingAnchor, constant: -12),
+                stack.topAnchor.constraint(equalTo: detailCard.topAnchor, constant: 10),
+                stack.bottomAnchor.constraint(equalTo: detailCard.bottomAnchor, constant: -10),
+            ])
+        }
+        return detailCard
+    }
+
+    private func configureTextView(_ textView: NSTextView, size: CGFloat, weight: NSFont.Weight) {
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.textColor = textColor
+        textView.font = NSFont.systemFont(ofSize: size, weight: weight)
+        textView.textContainerInset = NSSize(width: 10, height: 10)
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.isHorizontallyResizable = false
+        textView.isVerticallyResizable = true
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+    }
+
+    private func makeBadge(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        label.textColor = NSColor(calibratedRed: 0.76, green: 0.58, blue: 1.0, alpha: 1)
+        label.alignment = .center
+        label.wantsLayer = true
+        label.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
+        label.layer?.cornerRadius = 14
+        label.widthAnchor.constraint(greaterThanOrEqualToConstant: 78).isActive = true
+        label.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        return label
+    }
+
+    private func makeDivider() -> NSView {
+        let divider = NSView()
+        divider.wantsLayer = true
+        divider.layer?.backgroundColor = NSColor(calibratedRed: 0.78, green: 0.80, blue: 0.84, alpha: 0.80).cgColor
+        divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        return divider
+    }
+
+    private func makeLabel(_ text: String, size: CGFloat, weight: NSFont.Weight, color: NSColor) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: size, weight: weight)
+        label.textColor = color
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        return label
+    }
+
+    private func currentBadges() -> [String] {
+        var badges = context.languages.prefix(2).map { $0.name }
+        if badges.isEmpty, let primary = context.primaryLanguage {
+            badges = [primary]
+        }
+        if context.files.contains(where: { $0.lowercased().contains("docker") }) {
+            badges.append("Docker")
+        }
+        return badges.isEmpty ? ["GitHub"] : Array(badges.prefix(4))
+    }
+
+    private func resizeWindow(height: CGFloat) {
+        guard let window else { return }
+        var frame = window.frame
+        let targetWidth: CGFloat = 430
+        let delta = height - frame.height
+        frame.origin.y -= delta
+        frame.size.height = height
+        frame.size.width = targetWidth
+        window.setFrame(frame, display: true, animate: true)
+    }
+
+    private func formattedDate(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: value) else {
+            return value.count >= 10 ? String(value.prefix(10)) : nil
+        }
+        let display = DateFormatter()
+        display.locale = Locale(identifier: "en_US_POSIX")
+        display.dateFormat = "MMM d, yyyy"
+        return display.string(from: date)
+    }
+
+    private func clipped(_ value: String, limit: Int) -> String {
+        let cleaned = value.replacingOccurrences(of: "\r", with: "")
+        guard cleaned.count > limit else { return cleaned }
+        let prefix = cleaned.prefix(limit)
+        if let lastSpace = prefix.lastIndex(where: { $0.isWhitespace }) {
+            return String(prefix[..<lastSpace]) + "..."
+        }
+        return String(prefix) + "..."
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+    }
+
+    private func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 }
 
