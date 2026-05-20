@@ -88,9 +88,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let launchStatus = revealRepoTabAndTriggerAskYourGIT(url)
         if launchStatus == "triggered" {
-            show("Ask your GIT launched", "\(url)\n\nThe repo tab was opened and the Ask your GIT panel was triggered.")
+            return
         } else if launchStatus == "opened" {
-            show("Repo detected", "\(url)\n\nThe repo tab was opened and the URL was copied. If the panel did not open, reload the page and click the Ask your GIT button.")
+            return
         } else {
             show("Repo detected", "\(url)\n\nThe repo URL was copied. Click the Ask your GIT button on the page to analyze it.")
         }
@@ -211,11 +211,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func revealRepoTabAndTriggerAskYourGIT(_ url: String) -> String? {
         let targetURL = appleScriptString(url)
-        let triggerScript = appleScriptString("(() => { const button = document.getElementById('askyourgit-btn'); if (!button) return 'missing'; button.click(); return 'clicked'; })();")
+        let launchURL = appleScriptString(companionLaunchURL(url))
 
         let script = """
         set targetURL to \(targetURL)
-        set triggerScript to \(triggerScript)
+        set launchURL to \(launchURL)
 
         tell application "System Events"
           set chromeRunning to exists application process "Google Chrome"
@@ -233,12 +233,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   if candidateURL starts with targetURL then
                     set active tab index of browserWindow to tabIndex
                     set index of browserWindow to 1
+                    set URL of browserTab to launchURL
                     activate
-                    try
-                      set clickResult to execute javascript triggerScript in active tab of front window
-                      if clickResult is "clicked" then return "triggered"
-                    end try
-                    return "opened"
+                    return "triggered"
                   end if
                   set tabIndex to tabIndex + 1
                 end repeat
@@ -257,12 +254,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   if candidateURL starts with targetURL then
                     set active tab index of browserWindow to tabIndex
                     set index of browserWindow to 1
+                    set URL of browserTab to launchURL
                     activate
-                    try
-                      set clickResult to execute javascript triggerScript in active tab of front window
-                      if clickResult is "clicked" then return "triggered"
-                    end try
-                    return "opened"
+                    return "triggered"
                   end if
                   set tabIndex to tabIndex + 1
                 end repeat
@@ -280,12 +274,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   if candidateURL starts with targetURL then
                     set current tab of browserWindow to browserTab
                     set index of browserWindow to 1
+                    set URL of browserTab to launchURL
                     activate
-                    try
-                      set clickResult to do JavaScript triggerScript in current tab of front window
-                      if clickResult is "clicked" then return "triggered"
-                    end try
-                    return "opened"
+                    return "triggered"
                   end if
                 end repeat
               end repeat
@@ -297,6 +288,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         """
 
         return runAppleScript(script)
+    }
+
+    private func companionLaunchURL(_ value: String) -> String {
+        guard var components = URLComponents(string: value) else {
+            return value + (value.contains("?") ? "&" : "?") + "askyourgit=1"
+        }
+
+        var queryItems = components.queryItems ?? []
+        queryItems.removeAll { $0.name == "askyourgit" }
+        queryItems.append(URLQueryItem(name: "askyourgit", value: "1"))
+        components.queryItems = queryItems
+        return components.string ?? value
     }
 
     private func appleScriptString(_ value: String) -> String {

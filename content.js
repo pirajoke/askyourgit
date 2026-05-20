@@ -993,7 +993,7 @@
     if (existing) existing.remove();
   }
 
-  function createDropdown(repoInfo, anchorBtn) {
+  function createDropdown(repoInfo, anchorBtn, options = {}) {
     closeDropdown();
 
     const dropdown = document.createElement('div');
@@ -1266,6 +1266,12 @@
       dropdown.appendChild(shareItem);
 
       anchorBtn.parentElement.appendChild(dropdown);
+
+      if (options.autoChat) {
+        setTimeout(() => {
+          showRepoChat(dropdown, repoInfo, stackInfo);
+        }, 50);
+      }
     });
   }
 
@@ -1369,6 +1375,42 @@
     }
   }
 
+  let companionLaunchHandled = false;
+
+  function consumeCompanionLaunchFlag() {
+    if (companionLaunchHandled) return;
+
+    const url = new URL(window.location.href);
+    const shouldLaunch = url.searchParams.get('askyourgit') === '1'
+      || url.hash.includes('askyourgit=1');
+    if (!shouldLaunch) return;
+
+    companionLaunchHandled = true;
+    url.searchParams.delete('askyourgit');
+    if (url.hash.includes('askyourgit=1')) {
+      const cleanHash = url.hash
+        .replace(/[#&?]?askyourgit=1/, '')
+        .replace(/^#&/, '#')
+        .replace(/^#\?/, '#');
+      url.hash = cleanHash === '#' ? '' : cleanHash;
+    }
+    window.history.replaceState(window.history.state, document.title, url.toString());
+
+    setTimeout(() => {
+      let info = getRepoInfo();
+      if (!info) return;
+      injectButton();
+
+      setTimeout(() => {
+        const btn = document.getElementById(BUTTON_ID);
+        if (!btn) return;
+        info = getRepoInfo();
+        if (!info) return;
+        createDropdown(info, btn, { autoChat: true });
+      }, 400);
+    }, 500);
+  }
+
   // --- Event Listeners ---
 
   document.addEventListener('click', (e) => {
@@ -1378,6 +1420,7 @@
   });
 
   injectButton();
+  consumeCompanionLaunchFlag();
 
   let debounceTimer;
   const observer = new MutationObserver(() => {
@@ -1392,7 +1435,10 @@
   observer.observe(document.body, { childList: true, subtree: true });
 
   document.addEventListener('turbo:load', () => {
-    setTimeout(injectButton, 500);
+    setTimeout(() => {
+      injectButton();
+      consumeCompanionLaunchFlag();
+    }, 500);
   });
 
   // --- Keyboard Shortcut (Cmd+Shift+I) ---
