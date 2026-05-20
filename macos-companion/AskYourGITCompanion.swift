@@ -85,7 +85,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url, forType: .string)
-        show("Repo detected", "\(url)\n\nThe repo URL was copied. Click the Ask your GIT button on the page to analyze it.")
+
+        let launchStatus = revealRepoTabAndTriggerAskYourGIT(url)
+        if launchStatus == "triggered" {
+            show("Ask your GIT launched", "\(url)\n\nThe repo tab was opened and the Ask your GIT panel was triggered.")
+        } else if launchStatus == "opened" {
+            show("Repo detected", "\(url)\n\nThe repo tab was opened and the URL was copied. If the panel did not open, reload the page and click the Ask your GIT button.")
+        } else {
+            show("Repo detected", "\(url)\n\nThe repo URL was copied. Click the Ask your GIT button on the page to analyze it.")
+        }
     }
 
     @objc private func openExtensionFolder() {
@@ -199,6 +207,103 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             return nil
         }
+    }
+
+    private func revealRepoTabAndTriggerAskYourGIT(_ url: String) -> String? {
+        let targetURL = appleScriptString(url)
+        let triggerScript = appleScriptString("(() => { const button = document.getElementById('askyourgit-btn'); if (!button) return 'missing'; button.click(); return 'clicked'; })();")
+
+        let script = """
+        set targetURL to \(targetURL)
+        set triggerScript to \(triggerScript)
+
+        tell application "System Events"
+          set chromeRunning to exists application process "Google Chrome"
+          set braveRunning to exists application process "Brave Browser"
+          set safariRunning to exists application process "Safari"
+        end tell
+
+        if chromeRunning then
+          try
+            tell application "Google Chrome"
+              repeat with browserWindow in windows
+                set tabIndex to 1
+                repeat with browserTab in tabs of browserWindow
+                  set candidateURL to URL of browserTab
+                  if candidateURL starts with targetURL then
+                    set active tab index of browserWindow to tabIndex
+                    set index of browserWindow to 1
+                    activate
+                    try
+                      set clickResult to execute javascript triggerScript in active tab of front window
+                      if clickResult is "clicked" then return "triggered"
+                    end try
+                    return "opened"
+                  end if
+                  set tabIndex to tabIndex + 1
+                end repeat
+              end repeat
+            end tell
+          end try
+        end if
+
+        if braveRunning then
+          try
+            tell application "Brave Browser"
+              repeat with browserWindow in windows
+                set tabIndex to 1
+                repeat with browserTab in tabs of browserWindow
+                  set candidateURL to URL of browserTab
+                  if candidateURL starts with targetURL then
+                    set active tab index of browserWindow to tabIndex
+                    set index of browserWindow to 1
+                    activate
+                    try
+                      set clickResult to execute javascript triggerScript in active tab of front window
+                      if clickResult is "clicked" then return "triggered"
+                    end try
+                    return "opened"
+                  end if
+                  set tabIndex to tabIndex + 1
+                end repeat
+              end repeat
+            end tell
+          end try
+        end if
+
+        if safariRunning then
+          try
+            tell application "Safari"
+              repeat with browserWindow in windows
+                repeat with browserTab in tabs of browserWindow
+                  set candidateURL to URL of browserTab
+                  if candidateURL starts with targetURL then
+                    set current tab of browserWindow to browserTab
+                    set index of browserWindow to 1
+                    activate
+                    try
+                      set clickResult to do JavaScript triggerScript in current tab of front window
+                      if clickResult is "clicked" then return "triggered"
+                    end try
+                    return "opened"
+                  end if
+                end repeat
+              end repeat
+            end tell
+          end try
+        end if
+
+        return ""
+        """
+
+        return runAppleScript(script)
+    }
+
+    private func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 
     private func isRepoURL(_ value: String) -> Bool {
