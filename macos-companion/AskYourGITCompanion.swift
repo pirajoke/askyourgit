@@ -550,11 +550,103 @@ private enum GitHubRepoLoader {
     }
 }
 
+private final class CompactActionRow: NSControl {
+    private let normalColor: NSColor
+    private let hoverColor: NSColor
+
+    init(symbol: String, title: String, badge: String? = nil, accent: Bool = false, target: AnyObject?, action: Selector?) {
+        self.normalColor = NSColor.clear
+        self.hoverColor = NSColor(calibratedRed: 0.13, green: 0.15, blue: 0.19, alpha: 1)
+        super.init(frame: .zero)
+
+        self.target = target
+        self.action = action
+        wantsLayer = true
+        layer?.backgroundColor = normalColor.cgColor
+        layer?.cornerRadius = 8
+
+        let textColor = accent
+            ? NSColor(calibratedRed: 0.57, green: 0.36, blue: 0.98, alpha: 1)
+            : NSColor(calibratedRed: 0.90, green: 0.93, blue: 0.98, alpha: 1)
+
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        let iconView = NSImageView()
+        iconView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
+        iconView.contentTintColor = textColor
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        iconView.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        stack.addArrangedSubview(iconView)
+
+        let label = NSTextField(labelWithString: title)
+        label.font = NSFont.systemFont(ofSize: 17, weight: .semibold)
+        label.textColor = textColor
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        stack.addArrangedSubview(label)
+        label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        if let badge {
+            let badgeLabel = NSTextField(labelWithString: badge)
+            badgeLabel.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+            badgeLabel.textColor = NSColor(calibratedRed: 0.76, green: 0.58, blue: 1.0, alpha: 1)
+            badgeLabel.alignment = .center
+            badgeLabel.wantsLayer = true
+            badgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
+            badgeLabel.layer?.cornerRadius = 9
+            badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+            badgeLabel.heightAnchor.constraint(equalToConstant: 20).isActive = true
+            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 62).isActive = true
+            stack.addArrangedSubview(badgeLabel)
+        }
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: 40),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        layer?.backgroundColor = hoverColor.cgColor
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        layer?.backgroundColor = normalColor.cgColor
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        sendAction(action, to: target)
+    }
+}
+
 final class CompactRepoAnalysisWindowController: NSWindowController, NSTextFieldDelegate {
     private let repoRef: RepoRef
     private var context: RepoAnalysisContext
     private var chatTranscript = ""
     private var chatStarted = false
+    private var selectedTab = "overview"
+    private var tabButtons: [String: NSButton] = [:]
 
     private let badgeStack = NSStackView()
     private let metaLabel = NSTextField(labelWithString: "Loading repo metadata...")
@@ -566,6 +658,7 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
     private let detailTitleLabel = NSTextField(labelWithString: "")
     private let panelTextView = NSTextView()
     private let panelScrollView = NSScrollView()
+    private let bodyStack = NSStackView()
     private let inputRow = NSStackView()
     private let questionField = NSTextField()
     private let askButton = NSButton(title: "Ask", target: nil, action: nil)
@@ -585,7 +678,7 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         self.context = RepoAnalysisContext(ref: repoRef)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 430, height: 570),
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 640),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -593,7 +686,7 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         window.title = "Ask your GIT"
         window.backgroundColor = backgroundColor
         window.isMovableByWindowBackground = true
-        window.contentMinSize = NSSize(width: 430, height: 570)
+        window.contentMinSize = NSSize(width: 430, height: 640)
         window.contentMaxSize = NSSize(width: 430, height: 780)
         window.center()
 
@@ -625,28 +718,137 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
             root.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -18),
         ])
 
-        root.addArrangedSubview(makeHeader())
+        root.addArrangedSubview(makeTabBar())
         root.addArrangedSubview(makeDivider())
-        root.addArrangedSubview(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)))
-        root.addArrangedSubview(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
-        root.addArrangedSubview(makeDivider())
-        root.addArrangedSubview(makeActionRow(symbol: "diamond.fill", title: "Claude Code", action: #selector(openClaudeCode)))
-        root.addArrangedSubview(makeActionRow(symbol: "play.fill", title: "Cursor", action: #selector(openCursor)))
-        root.addArrangedSubview(makeActionRow(symbol: "circle.hexagongrid.fill", title: "Codex", action: #selector(openCodex)))
-        root.addArrangedSubview(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
-        root.addArrangedSubview(makeDivider())
-        root.addArrangedSubview(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)))
-        root.addArrangedSubview(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
 
         configureTextView(panelTextView, size: 13, weight: .regular)
-        root.addArrangedSubview(makeDetailCard())
-        detailCard.isHidden = true
-
-        root.addArrangedSubview(configureInputRow())
-        inputRow.isHidden = true
+        bodyStack.orientation = .vertical
+        bodyStack.alignment = .width
+        bodyStack.spacing = 8
+        root.addArrangedSubview(bodyStack)
 
         refreshBadges()
         refreshMeta()
+        selectTab("overview")
+    }
+
+    private func makeTabBar() -> NSView {
+        let bar = NSStackView()
+        bar.orientation = .horizontal
+        bar.alignment = .centerY
+        bar.distribution = .fillEqually
+        bar.spacing = 8
+
+        let tabs = [
+            ("overview", "square.grid.2x2.fill", "Overview"),
+            ("codex", "circle.hexagongrid.fill", "Codex"),
+            ("claude", "sparkle", "Claude"),
+            ("cursor", "play.fill", "Cursor"),
+            ("tools", "arrow.left.arrow.right", "Tools"),
+        ]
+
+        for tab in tabs {
+            let button = NSButton(title: "", target: self, action: #selector(tabClicked(_:)))
+            button.identifier = NSUserInterfaceItemIdentifier(tab.0)
+            button.isBordered = false
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 10
+            button.heightAnchor.constraint(equalToConstant: 58).isActive = true
+            button.image = NSImage(systemSymbolName: tab.1, accessibilityDescription: tab.2)
+            button.imagePosition = .imageAbove
+            button.imageScaling = .scaleProportionallyDown
+            button.attributedTitle = NSAttributedString(
+                string: tab.2,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+                    .foregroundColor: mutedTextColor,
+                ]
+            )
+            tabButtons[tab.0] = button
+            bar.addArrangedSubview(button)
+        }
+
+        return bar
+    }
+
+    @objc private func tabClicked(_ sender: NSButton) {
+        selectTab(sender.identifier?.rawValue ?? "overview")
+    }
+
+    private func selectTab(_ id: String) {
+        selectedTab = id
+        updateTabs()
+        renderSelectedTab()
+    }
+
+    private func updateTabs() {
+        for (id, button) in tabButtons {
+            let selected = id == selectedTab
+            button.layer?.backgroundColor = selected ? orangeColor.cgColor : NSColor.clear.cgColor
+            button.contentTintColor = selected ? NSColor.white : mutedTextColor
+            let title = button.identifier?.rawValue == "overview" ? "Overview"
+                : button.identifier?.rawValue == "codex" ? "Codex"
+                : button.identifier?.rawValue == "claude" ? "Claude"
+                : button.identifier?.rawValue == "cursor" ? "Cursor"
+                : "Tools"
+            button.attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+                    .foregroundColor: selected ? NSColor.white : mutedTextColor,
+                ]
+            )
+        }
+    }
+
+    private func renderSelectedTab() {
+        clearBody()
+        switch selectedTab {
+        case "codex":
+            renderToolTab(title: "Codex", symbol: "circle.hexagongrid.fill", runTitle: "Run Codex", action: #selector(openCodex))
+        case "claude":
+            renderToolTab(title: "Claude Code", symbol: "sparkle", runTitle: "Run Claude Code", action: #selector(openClaudeCode))
+        case "cursor":
+            renderToolTab(title: "Cursor", symbol: "play.fill", runTitle: "Open in Cursor", action: #selector(openCursor))
+        case "tools":
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+            bodyStack.addArrangedSubview(makeDivider())
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
+        default:
+            bodyStack.addArrangedSubview(makeHeader())
+            bodyStack.addArrangedSubview(makeDivider())
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
+            bodyStack.addArrangedSubview(makeDivider())
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "diamond.fill", title: "Claude Code", action: #selector(openClaudeCode)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "play.fill", title: "Cursor", action: #selector(openCursor)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "circle.hexagongrid.fill", title: "Codex", action: #selector(openCodex)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "plus", title: "Add custom tool", accent: true, action: #selector(addCustomTool)))
+            bodyStack.addArrangedSubview(makeDivider())
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "gearshape.fill", title: "Settings", action: #selector(openSettings)))
+            bodyStack.addArrangedSubview(makeActionRow(symbol: "dice.fill", title: "Share NFT", badge: "Animals", action: #selector(shareRepo)))
+        }
+    }
+
+    private func renderToolTab(title: String, symbol: String, runTitle: String, action: Selector) {
+        bodyStack.addArrangedSubview(makeToolHero(title: title, symbol: symbol))
+        bodyStack.addArrangedSubview(makeActionRow(symbol: "return", title: runTitle, action: action))
+        bodyStack.addArrangedSubview(makeActionRow(symbol: "doc.on.doc", title: "Copy repo URL", action: #selector(copyRepoURL)))
+        bodyStack.addArrangedSubview(makeActionRow(symbol: "info.circle.fill", title: "Quick Summary", action: #selector(showQuickSummary)))
+        bodyStack.addArrangedSubview(makeActionRow(symbol: "bubble.left.fill", title: "Ask AI", action: #selector(showAskAI)))
+    }
+
+    private func clearBody() {
+        for view in bodyStack.arrangedSubviews {
+            bodyStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        detailCard.removeFromSuperview()
+        inputRow.removeFromSuperview()
+        detailCard.isHidden = true
+        inputRow.isHidden = true
+        resizeWindow(height: 640)
     }
 
     private func makeHeader() -> NSView {
@@ -689,7 +891,7 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
 
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: header.leadingAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: header.trailingAnchor),
+            stack.trailingAnchor.constraint(equalTo: header.trailingAnchor),
             stack.topAnchor.constraint(equalTo: header.topAnchor),
             stack.bottomAnchor.constraint(equalTo: header.bottomAnchor),
         ])
@@ -754,7 +956,9 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
                     self.statusLabel.stringValue = "Ready"
                     self.refreshBadges()
                     self.refreshMeta()
-                    if self.chatStarted {
+                    if self.selectedTab == "overview" && !self.chatStarted {
+                        self.renderSelectedTab()
+                    } else if self.chatStarted {
                         self.showAskAI()
                     }
                 }
@@ -931,6 +1135,11 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         statusLabel.stringValue = "Share copied"
     }
 
+    @objc private func copyRepoURL() {
+        copyToPasteboard(context.ref.url)
+        statusLabel.stringValue = "Repo URL copied"
+    }
+
     private func sendTerminalCommand(_ command: String) {
         copyToPasteboard(command)
         let script = """
@@ -957,10 +1166,16 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
     }
 
     private func showDetail(title: String, body: String, showsInput: Bool) {
-        resizeWindow(height: showsInput ? 760 : 720)
+        resizeWindow(height: showsInput ? 760 : 700)
+        if detailCard.superview == nil {
+            bodyStack.addArrangedSubview(detailCard.subviews.isEmpty ? makeDetailCard() : detailCard)
+        }
         detailTitleLabel.stringValue = title
         panelTextView.string = body
         detailCard.isHidden = false
+        if showsInput, inputRow.superview == nil {
+            bodyStack.addArrangedSubview(inputRow.arrangedSubviews.isEmpty ? configureInputRow() : inputRow)
+        }
         inputRow.isHidden = !showsInput
     }
 
@@ -976,61 +1191,57 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         window.setFrame(frame, display: true, animate: true)
     }
 
-    private func makeActionRow(symbol: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSButton {
-        let button = NSButton(title: "", target: self, action: action)
-        button.isBordered = false
-        button.wantsLayer = true
-        button.layer?.cornerRadius = 10
-        button.layer?.backgroundColor = backgroundColor.cgColor
-        button.attributedTitle = NSAttributedString(string: "")
-        button.toolTip = title
+    private func makeActionRow(symbol: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSView {
+        CompactActionRow(symbol: symbol, title: title, badge: badge, accent: accent, target: self, action: action)
+    }
+
+    private func makeToolHero(title: String, symbol: String) -> NSView {
+        let hero = NSView()
+        hero.wantsLayer = true
+        hero.layer?.backgroundColor = cardColor.cgColor
+        hero.layer?.cornerRadius = 10
 
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 10
+        stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false
-        button.addSubview(stack)
+        hero.addSubview(stack)
 
         let iconView = NSImageView()
-        iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
-        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
-        iconView.contentTintColor = accent ? accentColor : textColor
-        iconView.imageScaling = .scaleProportionallyDown
-        iconView.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        iconView.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 24, weight: .semibold)
+        iconView.contentTintColor = textColor
+        iconView.widthAnchor.constraint(equalToConstant: 34).isActive = true
+        iconView.heightAnchor.constraint(equalToConstant: 34).isActive = true
         stack.addArrangedSubview(iconView)
 
-        let titleLabel = NSTextField(labelWithString: title)
-        titleLabel.font = NSFont.systemFont(ofSize: 18, weight: .semibold)
-        titleLabel.textColor = accent ? accentColor : textColor
-        titleLabel.lineBreakMode = .byTruncatingTail
-        titleLabel.maximumNumberOfLines = 1
-        stack.addArrangedSubview(titleLabel)
-        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let copy = NSStackView()
+        copy.orientation = .vertical
+        copy.alignment = .leading
+        copy.spacing = 3
+        stack.addArrangedSubview(copy)
 
-        if let badge {
-            let badgeLabel = NSTextField(labelWithString: badge)
-            badgeLabel.font = NSFont.systemFont(ofSize: 12, weight: .bold)
-            badgeLabel.textColor = accentColor
-            badgeLabel.alignment = .center
-            badgeLabel.wantsLayer = true
-            badgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
-            badgeLabel.layer?.cornerRadius = 9
-            badgeLabel.heightAnchor.constraint(equalToConstant: 20).isActive = true
-            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 62).isActive = true
-            stack.addArrangedSubview(badgeLabel)
-        }
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = NSFont.systemFont(ofSize: 18, weight: .bold)
+        titleLabel.textColor = textColor
+        copy.addArrangedSubview(titleLabel)
+
+        let subtitle = NSTextField(labelWithString: "Analyze \(context.ref.fullName) with this tool.")
+        subtitle.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        subtitle.textColor = mutedTextColor
+        subtitle.lineBreakMode = .byTruncatingTail
+        subtitle.maximumNumberOfLines = 1
+        copy.addArrangedSubview(subtitle)
 
         NSLayoutConstraint.activate([
-            button.heightAnchor.constraint(equalToConstant: 42),
-            stack.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 8),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -8),
-            stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            hero.heightAnchor.constraint(equalToConstant: 70),
+            stack.leadingAnchor.constraint(equalTo: hero.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: hero.trailingAnchor, constant: -12),
+            stack.centerYAnchor.constraint(equalTo: hero.centerYAnchor),
         ])
 
-        return button
+        return hero
     }
 
     private func makeDetailCard() -> NSView {
