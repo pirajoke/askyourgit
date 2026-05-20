@@ -1277,6 +1277,26 @@
 
   // --- Button Injection (multi-platform) ---
 
+  function createAskButton(repoInfo) {
+    const btn = document.createElement('button');
+    btn.id = BUTTON_ID;
+    btn.className = 'ai-install-btn';
+    btn.innerHTML = '<span class="ai-install-icon">⚡</span> Ask your GIT';
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const existing = document.getElementById(DROPDOWN_ID);
+      if (existing) {
+        closeDropdown();
+      } else {
+        createDropdown(repoInfo, btn);
+      }
+    });
+
+    return btn;
+  }
+
   function findCodeButton() {
     const platform = detectPlatform();
 
@@ -1347,21 +1367,7 @@
     container.className = 'ai-install-container';
     container.style.position = 'relative';
 
-    const btn = document.createElement('button');
-    btn.id = BUTTON_ID;
-    btn.className = 'ai-install-btn';
-    btn.innerHTML = '<span class="ai-install-icon">⚡</span> Ask your GIT';
-
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const existing = document.getElementById(DROPDOWN_ID);
-      if (existing) {
-        closeDropdown();
-      } else {
-        createDropdown(info, btn);
-      }
-    });
+    const btn = createAskButton(info);
 
     container.appendChild(btn);
 
@@ -1375,7 +1381,56 @@
     }
   }
 
+  function ensureCompanionButton(repoInfo) {
+    const existing = document.getElementById(BUTTON_ID);
+    if (existing) return existing;
+
+    injectButton();
+    const injected = document.getElementById(BUTTON_ID);
+    if (injected) return injected;
+
+    const container = document.createElement('div');
+    container.className = 'ai-install-container ai-install-companion-float';
+    container.style.position = 'fixed';
+    container.style.top = '96px';
+    container.style.right = '24px';
+    container.style.zIndex = '2147483647';
+
+    const btn = createAskButton(repoInfo);
+    container.appendChild(btn);
+    document.body.appendChild(container);
+    return btn;
+  }
+
   let companionLaunchHandled = false;
+
+  function launchCompanionPanel() {
+    const startedAt = Date.now();
+    const maxWaitMs = 12000;
+
+    const attempt = () => {
+      const info = getRepoInfo();
+      if (!info) {
+        if (Date.now() - startedAt < maxWaitMs) {
+          setTimeout(attempt, 300);
+        }
+        return;
+      }
+
+      const btn = ensureCompanionButton(info);
+      if (!btn || !btn.isConnected) {
+        if (Date.now() - startedAt < maxWaitMs) {
+          setTimeout(attempt, 300);
+        }
+        return;
+      }
+
+      createDropdown(info, btn, { autoChat: true });
+      showToast(`Analyzing ${info.owner}/${info.repo}...`);
+    };
+
+    attempt();
+  }
 
   function consumeCompanionLaunchFlag() {
     if (companionLaunchHandled) return;
@@ -1395,20 +1450,7 @@
       url.hash = cleanHash === '#' ? '' : cleanHash;
     }
     window.history.replaceState(window.history.state, document.title, url.toString());
-
-    setTimeout(() => {
-      let info = getRepoInfo();
-      if (!info) return;
-      injectButton();
-
-      setTimeout(() => {
-        const btn = document.getElementById(BUTTON_ID);
-        if (!btn) return;
-        info = getRepoInfo();
-        if (!info) return;
-        createDropdown(info, btn, { autoChat: true });
-      }, 400);
-    }, 500);
+    launchCompanionPanel();
   }
 
   // --- Event Listeners ---
