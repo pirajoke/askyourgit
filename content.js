@@ -1023,111 +1023,127 @@
         }
       }
 
-      // Stack label header
-      if (stackInfo.stacks.length > 0 || stackInfo.hasDocker) {
-        const header = document.createElement('div');
-        header.className = 'ai-install-stack-header';
-        const badges = [...stackInfo.stacks];
-        if (stackInfo.hasDocker) badges.push('Docker');
-        badges.forEach(s => {
-          const badge = document.createElement('span');
-          badge.className = 'ai-install-stack-badge';
-          badge.textContent = s;
-          header.appendChild(badge);
-        });
-        dropdown.appendChild(header);
-      }
-
-      // Trust info bar
-      if (trustInfo) {
-        const trustBar = document.createElement('div');
-        trustBar.className = 'ai-install-trust-bar';
-        const items = [];
-        if (trustInfo.stars) items.push(`★ ${trustInfo.stars}`);
-        if (trustInfo.license) items.push(`⚖ ${trustInfo.license}`);
-        if (trustInfo.lastCommit) items.push(`⏱ ${trustInfo.lastCommit}`);
-        items.forEach((text, i) => {
-          if (i > 0) {
-            const sep = document.createElement('span');
-            sep.className = 'ai-install-trust-sep';
-            sep.textContent = '·';
-            trustBar.appendChild(sep);
-          }
-          const span = document.createElement('span');
-          span.className = 'ai-install-trust-item';
-          span.textContent = text;
-          trustBar.appendChild(span);
-        });
-        dropdown.appendChild(trustBar);
-      }
-
-      // SMILE-enabled badge
       const hasSmileBadge = detectSmileBadge();
-      if (hasSmileBadge) {
-        const enabled = document.createElement('div');
-        enabled.className = 'ai-install-smile-enabled';
-        enabled.textContent = '⚡ Ask your GIT enabled';
-        dropdown.appendChild(enabled);
+      const tabBar = document.createElement('div');
+      tabBar.className = 'ai-install-menu-tabs';
+      const body = document.createElement('div');
+      body.className = 'ai-install-tab-body';
+      dropdown.append(tabBar, body);
+
+      const baseCommands = commands.filter((cmd) => ['claude', 'cursor', 'codex'].includes(cmd.id));
+      const customCommands = commands.filter((cmd) => cmd.id.startsWith('tool_'));
+      const tabConfig = [
+        { id: 'overview', icon: '▦', label: 'Overview' },
+        { id: 'codex', icon: '◉', label: 'Codex', commandId: 'codex' },
+        { id: 'claude', icon: '✳', label: 'Claude', commandId: 'claude' },
+        { id: 'cursor', icon: '▶', label: 'Cursor', commandId: 'cursor' },
+        { id: 'tools', icon: '↔', label: 'Tools' },
+      ];
+      const tabButtons = new Map();
+
+      function setIcon(target, icon) {
+        if (typeof icon === 'string' && icon.startsWith('<svg')) {
+          target.innerHTML = icon;
+        } else {
+          target.textContent = icon;
+        }
       }
 
-      // Quick Summary button
-      const summaryItem = document.createElement('button');
-      summaryItem.className = 'ai-install-dropdown-item ai-install-summary-item';
-      const summaryIcon = document.createElement('span');
-      summaryIcon.className = 'ai-install-item-icon';
-      summaryIcon.textContent = '\u2139\uFE0F';
-      const summaryLabel = document.createElement('span');
-      summaryLabel.className = 'ai-install-item-label';
-      summaryLabel.textContent = 'Quick Summary';
-      summaryItem.append(summaryIcon, summaryLabel);
-      summaryItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showRepoSummary(dropdown, repoInfo, stackInfo);
-      });
-      dropdown.appendChild(summaryItem);
-
-      // Ask AI chat button
-      const chatItem = document.createElement('button');
-      chatItem.className = 'ai-install-dropdown-item ai-install-summary-item';
-      const chatIcon = document.createElement('span');
-      chatIcon.className = 'ai-install-item-icon';
-      chatIcon.textContent = '\uD83D\uDCAC';
-      const chatLabel = document.createElement('span');
-      chatLabel.className = 'ai-install-item-label';
-      chatLabel.textContent = 'Ask AI';
-      chatItem.append(chatIcon, chatLabel);
-      chatItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showRepoChat(dropdown, repoInfo, stackInfo);
-      });
-      dropdown.appendChild(chatItem);
-
-      if ((stackInfo.stacks.length > 0 || stackInfo.hasDocker) || trustInfo || hasSmileBadge) {
-        const div = document.createElement('div');
-        div.className = 'ai-install-divider';
-        dropdown.appendChild(div);
-      }
-
-      // Command items
-      commands.forEach((cmd) => {
+      function makeRow({ icon, label, badge, defaulted, muted, accent, onClick }) {
         const item = document.createElement('button');
         item.className = 'ai-install-dropdown-item';
-        if (cmd.id === settings.defaultClient) {
-          item.classList.add('ai-install-default');
-        }
-        const cmdIcon = document.createElement('span');
-        cmdIcon.className = 'ai-install-item-icon';
-        if (typeof cmd.icon === 'string' && cmd.icon.startsWith('<svg')) {
-          cmdIcon.innerHTML = cmd.icon;
-        } else {
-          cmdIcon.textContent = cmd.icon;
-        }
-        const cmdLabel = document.createElement('span');
-        cmdLabel.className = 'ai-install-item-label';
-        cmdLabel.textContent = cmd.label;
-        item.append(cmdIcon, cmdLabel);
+        if (defaulted) item.classList.add('ai-install-default');
+        if (muted) item.classList.add('ai-install-badge-item');
+        if (accent) item.classList.add('ai-install-add-tool-item');
 
-        // Delete button for custom tools
+        const itemIcon = document.createElement('span');
+        itemIcon.className = 'ai-install-item-icon';
+        setIcon(itemIcon, icon);
+
+        const itemLabel = document.createElement('span');
+        itemLabel.className = 'ai-install-item-label';
+        itemLabel.textContent = label;
+
+        item.append(itemIcon, itemLabel);
+        if (badge) {
+          const tag = document.createElement('span');
+          tag.className = 'ai-install-pack-tag';
+          tag.textContent = badge;
+          item.appendChild(tag);
+        }
+        item.addEventListener('click', onClick);
+        return item;
+      }
+
+      function addRepoSignals(target) {
+        if (stackInfo.stacks.length > 0 || stackInfo.hasDocker) {
+          const header = document.createElement('div');
+          header.className = 'ai-install-stack-header';
+          const badges = [...stackInfo.stacks];
+          if (stackInfo.hasDocker) badges.push('Docker');
+          badges.forEach(s => {
+            const badge = document.createElement('span');
+            badge.className = 'ai-install-stack-badge';
+            badge.textContent = s;
+            header.appendChild(badge);
+          });
+          target.appendChild(header);
+        }
+
+        if (trustInfo) {
+          const trustBar = document.createElement('div');
+          trustBar.className = 'ai-install-trust-bar';
+          const items = [];
+          if (trustInfo.stars) items.push(`★ ${trustInfo.stars}`);
+          if (trustInfo.license) items.push(`LICENSE ${trustInfo.license}`);
+          if (trustInfo.lastCommit) items.push(`Updated ${trustInfo.lastCommit}`);
+          items.forEach((text, i) => {
+            if (i > 0) {
+              const sep = document.createElement('span');
+              sep.className = 'ai-install-trust-sep';
+              sep.textContent = '·';
+              trustBar.appendChild(sep);
+            }
+            const span = document.createElement('span');
+            span.className = 'ai-install-trust-item';
+            span.textContent = text;
+            trustBar.appendChild(span);
+          });
+          target.appendChild(trustBar);
+        }
+
+        if (hasSmileBadge) {
+          const enabled = document.createElement('div');
+          enabled.className = 'ai-install-smile-enabled';
+          enabled.textContent = '⚡ Ask your GIT enabled';
+          target.appendChild(enabled);
+        }
+      }
+
+      function divider() {
+        const div = document.createElement('div');
+        div.className = 'ai-install-divider';
+        return div;
+      }
+
+      async function runCommand(cmd) {
+        closeDropdown();
+        const ok = await showInstallConfirm(`${repoInfo.owner}/${repoInfo.repo}`, cmd.label, cmd.icon);
+        if (!ok) return;
+        await executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { codexMode: cmd.codexMode });
+      }
+
+      function makeCommandRow(cmd) {
+        const item = makeRow({
+          icon: cmd.icon,
+          label: cmd.label,
+          defaulted: cmd.id === settings.defaultClient,
+          onClick: async (e) => {
+            e.stopPropagation();
+            await runCommand(cmd);
+          },
+        });
+
         if (cmd.id.startsWith('tool_')) {
           const delBtn = document.createElement('span');
           delBtn.className = 'ai-install-tool-delete';
@@ -1147,129 +1163,231 @@
           item.appendChild(delBtn);
         }
 
-        item.addEventListener('click', async (e) => {
+        return item;
+      }
+
+      function makeAddToolRow() {
+        return makeRow({
+          icon: '+',
+          label: 'Add custom tool',
+          accent: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            closeDropdown();
+            showAddToolModal((newTool) => {
+              chrome.storage.sync.get({ customTools: [] }, (data) => {
+                const tools = data.customTools;
+                if (tools.length >= 10) return;
+                tools.push(newTool);
+                chrome.storage.sync.set({ customTools: tools });
+              });
+            });
+          },
+        });
+      }
+
+      function appendSettingsAndShare(target) {
+        target.appendChild(divider());
+
+        target.appendChild(makeRow({
+          icon: '⚙',
+          label: 'Settings',
+          muted: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            closeDropdown();
+            try {
+              chrome.runtime.sendMessage({ action: 'open-popup' });
+            } catch {}
+            showToast('Opening settings... (or click ⚡ Ask your GIT icon in toolbar)');
+          },
+        }));
+
+        const packLabel = EMOJI_PACKS[settings.emojiPack]?.label || 'Animals';
+        const shareItem = makeRow({
+          icon: '🎲',
+          label: 'Share NFT',
+          badge: packLabel,
+          muted: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            const nft = rollEmoji(settings.emojiPack);
+            const pack = EMOJI_PACKS[settings.emojiPack] || EMOJI_PACKS.animals;
+            const tierColors = { common: '#8b949e', rare: '#3b82f6', epic: '#a855f7', legendary: '#eab308' };
+            const stars = nft.tier === 'legendary' ? '★★★' : nft.tier === 'epic' ? '★★' : nft.tier === 'rare' ? '★' : '';
+            const glowClass = nft.tier === 'legendary' ? ' ai-install-glow-legendary' :
+                              nft.tier === 'epic' ? ' ai-install-glow-epic' :
+                              nft.tier === 'rare' ? ' ai-install-glow-rare' : '';
+
+            const allEmojis = Object.values(pack.tiers).flat();
+            let spinCount = 0;
+            const spinInterval = setInterval(() => {
+              const rnd = allEmojis[Math.floor(Math.random() * allEmojis.length)];
+              shareItem.textContent = '';
+              const spinIcon = document.createElement('span');
+              spinIcon.className = 'ai-install-item-icon ai-install-spin-emoji';
+              spinIcon.textContent = rnd;
+              const spinLabel = document.createElement('span');
+              spinLabel.className = 'ai-install-item-label';
+              spinLabel.style.color = '#8b949e';
+              spinLabel.textContent = 'Rolling...';
+              shareItem.append(spinIcon, spinLabel);
+              spinCount++;
+              if (spinCount >= 8) {
+                clearInterval(spinInterval);
+                shareItem.textContent = '';
+                const revealEmoji = document.createElement('span');
+                revealEmoji.className = 'ai-install-nft-emoji-inline' + glowClass;
+                revealEmoji.textContent = nft.emoji;
+                const revealLabel = document.createElement('span');
+                revealLabel.className = 'ai-install-item-label';
+                revealLabel.style.color = tierColors[nft.tier];
+                revealLabel.style.fontWeight = '700';
+                revealLabel.textContent = `${nft.label} ${stars}`;
+                shareItem.append(revealEmoji, revealLabel);
+                recordRoll(nft, repoInfo.url);
+                showSharePicker(shareItem, nft, repoInfo.url, settings.shareTemplate);
+              }
+            }, 80);
+          },
+        });
+        shareItem.classList.add('ai-install-share-item');
+        target.appendChild(shareItem);
+      }
+
+      function renderOverview() {
+        body.replaceChildren();
+        addRepoSignals(body);
+        body.appendChild(makeRow({
+          icon: 'ℹ',
+          label: 'Quick Summary',
+          muted: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            showRepoSummary(body, repoInfo, stackInfo);
+          },
+        }));
+        body.appendChild(makeRow({
+          icon: '💬',
+          label: 'Ask AI',
+          muted: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            showRepoChat(body, repoInfo, stackInfo);
+          },
+        }));
+        body.appendChild(divider());
+        baseCommands.forEach((cmd) => body.appendChild(makeCommandRow(cmd)));
+        body.appendChild(makeAddToolRow());
+        appendSettingsAndShare(body);
+      }
+
+      function renderCommandTab(commandId) {
+        body.replaceChildren();
+        const cmd = commands.find((item) => item.id === commandId);
+        if (!cmd) {
+          body.appendChild(makeRow({
+            icon: '!',
+            label: 'Tool is unavailable',
+            muted: true,
+            onClick: (e) => e.stopPropagation(),
+          }));
+          return;
+        }
+
+        const hero = document.createElement('div');
+        hero.className = 'ai-install-tool-hero';
+        const heroIcon = document.createElement('span');
+        heroIcon.className = 'ai-install-tool-hero-icon';
+        setIcon(heroIcon, cmd.icon);
+        const heroCopy = document.createElement('div');
+        heroCopy.className = 'ai-install-tool-hero-copy';
+        const title = document.createElement('strong');
+        title.textContent = cmd.label;
+        const text = document.createElement('span');
+        text.textContent = cmd.id === 'cursor'
+          ? 'Open this repo directly in Cursor.'
+          : `Send this repo to ${cmd.label} with the right setup prompt.`;
+        heroCopy.append(title, text);
+        hero.append(heroIcon, heroCopy);
+        body.appendChild(hero);
+
+        body.appendChild(makeRow({
+          icon: '↵',
+          label: cmd.id === 'cursor' ? 'Open repo' : `Run ${cmd.label}`,
+          defaulted: cmd.id === settings.defaultClient,
+          onClick: async (e) => {
+            e.stopPropagation();
+            await runCommand(cmd);
+          },
+        }));
+        body.appendChild(makeRow({
+          icon: '⌘',
+          label: 'Copy command',
+          muted: true,
+          onClick: async (e) => {
+            e.stopPropagation();
+            await navigator.clipboard.writeText(cmd.command);
+            showToast(`${cmd.label} command copied`);
+          },
+        }));
+        body.appendChild(makeRow({
+          icon: 'ℹ',
+          label: 'Quick Summary',
+          muted: true,
+          onClick: (e) => {
+            e.stopPropagation();
+            showRepoSummary(body, repoInfo, stackInfo);
+          },
+        }));
+      }
+
+      function renderTools() {
+        body.replaceChildren();
+        if (customCommands.length > 0) {
+          customCommands.forEach((cmd) => body.appendChild(makeCommandRow(cmd)));
+          body.appendChild(divider());
+        }
+        body.appendChild(makeAddToolRow());
+        appendSettingsAndShare(body);
+      }
+
+      function activateTab(id) {
+        tabButtons.forEach((button, key) => {
+          button.classList.toggle('ai-install-menu-tab-active', key === id);
+        });
+
+        const config = tabConfig.find((tab) => tab.id === id) || tabConfig[0];
+        if (config.commandId) {
+          renderCommandTab(config.commandId);
+        } else if (id === 'tools') {
+          renderTools();
+        } else {
+          renderOverview();
+        }
+      }
+
+      tabConfig.forEach((tab) => {
+        const btn = document.createElement('button');
+        btn.className = 'ai-install-menu-tab';
+        btn.type = 'button';
+        btn.innerHTML = `<span class="ai-install-menu-tab-icon">${tab.icon}</span><span>${tab.label}</span>`;
+        btn.addEventListener('click', (e) => {
           e.stopPropagation();
-          closeDropdown();
-          const ok = await showInstallConfirm(`${repoInfo.owner}/${repoInfo.repo}`, cmd.label, cmd.icon);
-          if (!ok) return;
-          await executeOrCopy(cmd.id, cmd.command, repoInfo.url, anchorBtn, cmd.openUrl, { codexMode: cmd.codexMode });
+          activateTab(tab.id);
         });
-        dropdown.appendChild(item);
+        tabButtons.set(tab.id, btn);
+        tabBar.appendChild(btn);
       });
 
-      // Add Custom Tool button
-      const addToolItem = document.createElement('button');
-      addToolItem.className = 'ai-install-dropdown-item ai-install-add-tool-item';
-      const addToolIcon = document.createElement('span');
-      addToolIcon.className = 'ai-install-item-icon';
-      addToolIcon.textContent = '+';
-      const addToolLabel = document.createElement('span');
-      addToolLabel.className = 'ai-install-item-label';
-      addToolLabel.textContent = 'Add custom tool';
-      addToolItem.append(addToolIcon, addToolLabel);
-      addToolItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeDropdown();
-        showAddToolModal((newTool) => {
-          // Refresh dropdown with new tool
-          chrome.storage.sync.get({ customTools: [] }, (data) => {
-            const tools = data.customTools;
-            if (tools.length >= 10) return;
-            tools.push(newTool);
-            chrome.storage.sync.set({ customTools: tools });
-          });
-        });
-      });
-      dropdown.appendChild(addToolItem);
-
-      // Divider
-      const divider = document.createElement('div');
-      divider.className = 'ai-install-divider';
-      dropdown.appendChild(divider);
-
-      // Settings
-      const settingsItem = document.createElement('button');
-      settingsItem.className = 'ai-install-dropdown-item ai-install-badge-item';
-      const settingsIcon = document.createElement('span');
-      settingsIcon.className = 'ai-install-item-icon';
-      settingsIcon.textContent = '⚙️';
-      const settingsLabel = document.createElement('span');
-      settingsLabel.className = 'ai-install-item-label';
-      settingsLabel.textContent = 'Settings';
-      settingsItem.append(settingsIcon, settingsLabel);
-      settingsItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeDropdown();
-        try {
-          chrome.runtime.sendMessage({ action: 'open-popup' });
-        } catch {}
-        showToast('Opening settings... (or click ⚡ Ask your GIT icon in toolbar)');
-      });
-      dropdown.appendChild(settingsItem);
-
-      // NFT Share
-      const shareItem = document.createElement('button');
-      shareItem.className = 'ai-install-dropdown-item ai-install-share-item';
-      const packLabel = EMOJI_PACKS[settings.emojiPack]?.label || 'Animals';
-      const shareIcon = document.createElement('span');
-      shareIcon.className = 'ai-install-item-icon';
-      shareIcon.textContent = '🎲';
-      const shareLbl = document.createElement('span');
-      shareLbl.className = 'ai-install-item-label';
-      shareLbl.textContent = 'Share NFT ';
-      const packTag = document.createElement('span');
-      packTag.className = 'ai-install-pack-tag';
-      packTag.textContent = packLabel;
-      shareLbl.appendChild(packTag);
-      shareItem.append(shareIcon, shareLbl);
-      shareItem.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const nft = rollEmoji(settings.emojiPack);
-        const pack = EMOJI_PACKS[settings.emojiPack] || EMOJI_PACKS.animals;
-        const tierColors = { common: '#8b949e', rare: '#3b82f6', epic: '#a855f7', legendary: '#eab308' };
-        const stars = nft.tier === 'legendary' ? '★★★' : nft.tier === 'epic' ? '★★' : nft.tier === 'rare' ? '★' : '';
-        const glowClass = nft.tier === 'legendary' ? ' ai-install-glow-legendary' :
-                          nft.tier === 'epic' ? ' ai-install-glow-epic' :
-                          nft.tier === 'rare' ? ' ai-install-glow-rare' : '';
-
-        const allEmojis = Object.values(pack.tiers).flat();
-        let spinCount = 0;
-        const spinInterval = setInterval(() => {
-          const rnd = allEmojis[Math.floor(Math.random() * allEmojis.length)];
-          shareItem.textContent = '';
-          const spinIcon = document.createElement('span');
-          spinIcon.className = 'ai-install-item-icon ai-install-spin-emoji';
-          spinIcon.textContent = rnd;
-          const spinLabel = document.createElement('span');
-          spinLabel.className = 'ai-install-item-label';
-          spinLabel.style.color = '#8b949e';
-          spinLabel.textContent = 'Rolling...';
-          shareItem.append(spinIcon, spinLabel);
-          spinCount++;
-          if (spinCount >= 8) {
-            clearInterval(spinInterval);
-            shareItem.textContent = '';
-            const revealEmoji = document.createElement('span');
-            revealEmoji.className = 'ai-install-nft-emoji-inline' + glowClass;
-            revealEmoji.textContent = nft.emoji;
-            const revealLabel = document.createElement('span');
-            revealLabel.className = 'ai-install-item-label';
-            revealLabel.style.color = tierColors[nft.tier];
-            revealLabel.style.fontWeight = '700';
-            revealLabel.textContent = `${nft.label} ${stars}`;
-            shareItem.append(revealEmoji, revealLabel);
-            recordRoll(nft, repoInfo.url);
-            showSharePicker(shareItem, nft, repoInfo.url, settings.shareTemplate);
-          }
-        }, 80);
-      });
-      dropdown.appendChild(shareItem);
+      activateTab('overview');
 
       anchorBtn.parentElement.appendChild(dropdown);
 
       if (options.autoChat) {
         setTimeout(() => {
-          showRepoChat(dropdown, repoInfo, stackInfo);
+          activateTab('overview');
+          showRepoChat(body, repoInfo, stackInfo);
         }, 50);
       }
     });

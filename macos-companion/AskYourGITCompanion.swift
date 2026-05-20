@@ -585,7 +585,7 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         self.context = RepoAnalysisContext(ref: repoRef)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 590),
+            contentRect: NSRect(x: 0, y: 0, width: 430, height: 570),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -593,6 +593,8 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
         window.title = "Ask your GIT"
         window.backgroundColor = backgroundColor
         window.isMovableByWindowBackground = true
+        window.contentMinSize = NSSize(width: 430, height: 570)
+        window.contentMaxSize = NSSize(width: 430, height: 780)
         window.center()
 
         super.init(window: window)
@@ -648,36 +650,49 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
     }
 
     private func makeHeader() -> NSView {
-        let header = NSStackView()
-        header.orientation = .vertical
-        header.alignment = .leading
-        header.spacing = 7
+        let header = NSView()
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 7
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        header.addSubview(stack)
 
         badgeStack.orientation = .horizontal
         badgeStack.alignment = .leading
         badgeStack.spacing = 8
-        header.addArrangedSubview(badgeStack)
+        stack.addArrangedSubview(badgeStack)
 
         metaLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         metaLabel.textColor = mutedTextColor
         metaLabel.lineBreakMode = .byTruncatingTail
-        header.addArrangedSubview(metaLabel)
+        metaLabel.maximumNumberOfLines = 1
+        stack.addArrangedSubview(metaLabel)
 
         repoLabel.stringValue = repoRef.fullName
         repoLabel.font = NSFont.systemFont(ofSize: 19, weight: .bold)
         repoLabel.textColor = textColor
         repoLabel.lineBreakMode = .byTruncatingMiddle
-        header.addArrangedSubview(repoLabel)
+        repoLabel.maximumNumberOfLines = 1
+        stack.addArrangedSubview(repoLabel)
 
         urlLabel.stringValue = repoRef.url
         urlLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
         urlLabel.textColor = mutedTextColor
         urlLabel.lineBreakMode = .byTruncatingMiddle
-        header.addArrangedSubview(urlLabel)
+        urlLabel.maximumNumberOfLines = 1
+        stack.addArrangedSubview(urlLabel)
 
         statusLabel.font = NSFont.systemFont(ofSize: 13, weight: .bold)
         statusLabel.textColor = greenColor
-        header.addArrangedSubview(statusLabel)
+        stack.addArrangedSubview(statusLabel)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: header.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: header.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: header.bottomAnchor),
+        ])
 
         return header
     }
@@ -952,35 +967,69 @@ final class CompactRepoAnalysisWindowController: NSWindowController, NSTextField
     private func resizeWindow(height: CGFloat) {
         guard let window else { return }
         var frame = window.frame
-        guard abs(frame.height - height) > 1 else { return }
+        let targetWidth: CGFloat = 430
+        guard abs(frame.height - height) > 1 || abs(frame.width - targetWidth) > 1 else { return }
         let delta = height - frame.height
         frame.origin.y -= delta
         frame.size.height = height
+        frame.size.width = targetWidth
         window.setFrame(frame, display: true, animate: true)
     }
 
     private func makeActionRow(symbol: String, title: String, badge: String? = nil, accent: Bool = false, action: Selector) -> NSButton {
         let button = NSButton(title: "", target: self, action: action)
         button.isBordered = false
-        button.alignment = .left
         button.wantsLayer = true
         button.layer?.cornerRadius = 10
         button.layer?.backgroundColor = backgroundColor.cgColor
-        button.heightAnchor.constraint(equalToConstant: 40).isActive = true
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
-        button.imagePosition = .imageLeft
-        button.imageScaling = .scaleProportionallyDown
-        button.contentTintColor = accent ? accentColor : textColor
-
-        let text = badge == nil ? "  \(title)" : "  \(title)   \(badge!)"
-        button.attributedTitle = NSAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
-                .foregroundColor: accent ? accentColor : textColor,
-            ]
-        )
+        button.attributedTitle = NSAttributedString(string: "")
         button.toolTip = title
+
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(stack)
+
+        let iconView = NSImageView()
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
+        iconView.contentTintColor = accent ? accentColor : textColor
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        iconView.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        stack.addArrangedSubview(iconView)
+
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = NSFont.systemFont(ofSize: 18, weight: .semibold)
+        titleLabel.textColor = accent ? accentColor : textColor
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.maximumNumberOfLines = 1
+        stack.addArrangedSubview(titleLabel)
+        titleLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        if let badge {
+            let badgeLabel = NSTextField(labelWithString: badge)
+            badgeLabel.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+            badgeLabel.textColor = accentColor
+            badgeLabel.alignment = .center
+            badgeLabel.wantsLayer = true
+            badgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.16, green: 0.07, blue: 0.28, alpha: 1).cgColor
+            badgeLabel.layer?.cornerRadius = 9
+            badgeLabel.heightAnchor.constraint(equalToConstant: 20).isActive = true
+            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 62).isActive = true
+            stack.addArrangedSubview(badgeLabel)
+        }
+
+        NSLayoutConstraint.activate([
+            button.heightAnchor.constraint(equalToConstant: 42),
+            stack.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -8),
+            stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+        ])
+
         return button
     }
 
