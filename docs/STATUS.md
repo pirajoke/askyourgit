@@ -1,6 +1,6 @@
 # Ask your GIT Status
 
-Last updated: 2026-05-20
+Last updated: 2026-05-22
 
 ## Current State
 
@@ -8,9 +8,9 @@ Ask your GIT is a hackathon prototype with:
 - Chrome extension repo analysis UI on GitHub/GitLab/Bitbucket pages.
 - macOS menu bar companion app installed via DMG.
 - Download site deployed with direct macOS DMG link.
-- Native app action `Analyze Current Repo` now opens a compact dark repo analysis window modeled after the extension dropdown/menu style.
+- Native app action `Analyze Current Repo` now opens a compact dark repo analysis window with a pinned, reference-style tab layout.
 
-Latest saved commit: `2f7463f` (`Match native analyzer to extension menu`)
+Latest saved commit: `c206079` (`Use pinned native analyzer layout`)
 
 Public site:
 https://pirajoke.github.io/askyourgit/
@@ -39,6 +39,11 @@ https://pirajoke.github.io/askyourgit/dist/askyourgit-macos.dmg
 - Rebuilt `dist/askyourgit-macos.dmg`.
 - Installed the new app into `/Applications/Ask your GIT Companion.app`.
 - Pushed to `main` and confirmed GitHub Pages rebuilt.
+- Added `ReferenceRepoAnalysisWindowController` and switched `AppDelegate` to it.
+- Reworked the native analyzer away from auto-centered AppKit stack behavior into a pinned body layout.
+- Added reference-style top tabs: Overview, Codex, Claude, Cursor, Tools.
+- Replaced problematic standard button rows with custom `CompactActionRow` controls.
+- Rebuilt, installed, launched, committed, and pushed the corrected pinned layout in `c206079`.
 
 ## Verified
 
@@ -47,11 +52,12 @@ https://pirajoke.github.io/askyourgit/dist/askyourgit-macos.dmg
 - `/Applications/Ask your GIT Companion.app/Contents/MacOS/AskYourGITCompanion` is running.
 - `hdiutil verify dist/askyourgit-macos.dmg` reports the image checksum is valid.
 - GitHub Pages status is `built`.
-- Public DMG `content-length` is `1772890`, matching local `dist/askyourgit-macos.dmg`.
+- Public DMG `content-length` is `1830007`, matching local `dist/askyourgit-macos.dmg`.
 
 ## Remaining Work
 
 - Remove the old unused `RepoAnalysisWindowController` fallback class after demo pressure is over.
+- Remove the superseded `CompactRepoAnalysisWindowController` once the pinned reference controller is visually accepted.
 - Add real native AI API calls instead of local heuristic answers.
 - Add proper settings persistence for native app custom tools.
 - Improve native visual QA with screenshots after every UI iteration.
@@ -64,4 +70,4 @@ https://pirajoke.github.io/askyourgit/dist/askyourgit-macos.dmg
 
 ## Resume Context
 
-Continue from the compact native app design. The main user complaint was that the macOS analyzer looked like a large gray dashboard instead of the extension dropdown. The active app path is now `CompactRepoAnalysisWindowController` in `macos-companion/AskYourGITCompanion.swift`. The download artifact and site are already updated, so the next useful work is either real AI integration in the native Ask AI flow or cleanup of the old unused controller.
+Continue from the pinned native app design. The user complaint was that the macOS analyzer kept drifting into an ugly centered/right-shifted layout. The active app path is now `ReferenceRepoAnalysisWindowController` in `macos-companion/AskYourGITCompanion.swift`, opened from `AppDelegate.analyzeCurrentRepo()`. The download artifact and site are already updated, so the next useful work is visual QA against a fresh screenshot, then either real native AI integration or cleanup of the old unused controllers.
