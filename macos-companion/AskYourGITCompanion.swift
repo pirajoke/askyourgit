@@ -645,6 +645,9 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
     private let repoRef: RepoRef
     private var context: RepoAnalysisContext
     private let webView: WKWebView
+    private var isLoadingContext = false
+    private var loadError: String?
+    private var pendingQuestions: [String] = []
 
     init?(repoURL: String) {
         guard let repoRef = RepoRef(urlString: repoURL) else { return nil }
@@ -671,8 +674,7 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
         super.init(window: window)
         userContent.add(self, name: "askyourgit")
         buildInterface()
-        renderPage()
-        loadContext()
+        loadContext(renderLoadingPage: true)
     }
 
     required init?(coder: NSCoder) {
@@ -696,19 +698,47 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
         ])
     }
 
-    private func loadContext() {
+    private func loadContext(renderLoadingPage: Bool = false) {
+        guard !isLoadingContext else { return }
+        isLoadingContext = true
+        loadError = nil
+        if renderLoadingPage {
+            renderPage()
+        }
+
         Task {
             do {
                 let loaded = try await GitHubRepoLoader.fetch(ref: repoRef)
                 await MainActor.run {
                     self.context = loaded
-                    self.renderPage()
+                    self.isLoadingContext = false
+                    if !self.hasRepoContext, self.repoRef.host == "github.com" {
+                        self.loadError = "GitHub API returned no repository details."
+                    }
+                    self.finishContextLoad()
                 }
             } catch {
                 await MainActor.run {
-                    self.renderPage()
+                    self.isLoadingContext = false
+                    self.loadError = error.localizedDescription
+                    self.finishContextLoad()
                 }
             }
+        }
+    }
+
+    private func finishContextLoad() {
+        let questions = pendingQuestions
+        pendingQuestions.removeAll()
+
+        if questions.isEmpty {
+            renderPage()
+            return
+        }
+
+        evaluate("setStatus(\(jsString(loadError == nil ? "Ready" : "Context limited")));")
+        for question in questions {
+            evaluate("appendMessage('assistant', \(jsString(answer(for: question))));")
         }
     }
 
@@ -724,6 +754,13 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
         case "ask":
             let question = (body["question"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !question.isEmpty else { return }
+            if shouldWaitForContextBeforeAnswering {
+                pendingQuestions.append(question)
+                evaluate("setStatus('Loading GitHub');")
+                evaluate("appendMessage('assistant', \(jsString("Loading repository context from GitHub first. I will answer with README, languages, topics, and files in a moment.")));")
+                loadContext()
+                return
+            }
             evaluate("appendMessage('assistant', \(jsString(answer(for: question))));")
         case "claude":
             sendTerminalCommand("claude \"Analyze \(context.ref.url). Summarize the repo, weak points, setup path, and first implementation step.\"")
@@ -756,15 +793,17 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
     private func makeHTML() -> String {
         let badges = currentBadges().map { "<span class=\"chip\">\(html($0))</span>" }.joined()
         let topicBadges = context.topics.prefix(3).map { "<span class=\"mini-chip\">\(html($0))</span>" }.joined()
-        let topics = topicBadges.isEmpty ? "<span class=\"empty-chip\">No topics</span>" : topicBadges
-        let description = html(context.description ?? "No GitHub description available yet.")
+        let topics = topicBadges.isEmpty ? "<span class=\"empty-chip\">\(isLoadingContext ? "Loading topics" : "No topics")</span>" : topicBadges
+        let description = html(context.description ?? (isLoadingContext ? "Loading GitHub description..." : "No GitHub description available."))
         let updated = html(formattedDate(context.updatedAt) ?? "Updated just now")
         let license = html(context.license ?? "LICENSE")
-        let readmeSignal = html(clipped(context.readmeSignal, limit: 320))
+        let readmeSignal = html(isLoadingContext ? "Loading README signal..." : clipped(context.readmeSignal, limit: 320))
         let files = html(context.files.prefix(10).joined(separator: " · "))
-        let stack = html(context.languageSummary)
+        let stack = html(isLoadingContext ? "Loading language breakdown..." : context.languageSummary)
         let stars = html(context.stars.map(String.init) ?? "0")
         let forks = html(context.forks.map(String.init) ?? "0")
+        let statusText = html(isLoadingContext ? "Loading GitHub" : (loadError == nil ? "Ready" : "Context limited"))
+        let primary = html(context.primaryLanguage ?? (isLoadingContext ? "Loading" : "Repo"))
 
         return """
         <!doctype html>
@@ -1109,11 +1148,11 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
                 <div class="meta"><span>LICENSE: \(license)</span><span>Updated: \(updated)</span></div>
                 <h1 class="repo">\(html(context.ref.fullName))</h1>
                 <div class="url">\(html(context.ref.url))</div>
-                <div class="status" id="status">● Ready</div>
+                <div class="status" id="status">● \(statusText)</div>
                 <div class="quick">
                   <div class="metric"><b>\(stars)</b><span>Stars</span></div>
                   <div class="metric"><b>\(forks)</b><span>Forks</span></div>
-                  <div class="metric"><b>\(html(context.primaryLanguage ?? "Repo"))</b><span>Primary</span></div>
+                  <div class="metric"><b>\(primary)</b><span>Primary</span></div>
                 </div>
               </section>
 
@@ -1148,7 +1187,7 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
                 <button class="row" onclick="native('copy-url')"><span class="icon">⌘</span><span class="title">Copy repo URL</span></button>
                 <div class="signal-card">
                   <h3>Root files</h3>
-                  <p>\(files.isEmpty ? "Root files are still loading." : files)</p>
+                  <p>\(files.isEmpty ? (isLoadingContext ? "Root files are loading." : "No root files loaded.") : files)</p>
                 </div>
               </div>
 
@@ -1266,7 +1305,15 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
     }
 
     private func initialChatText() -> String {
-        """
+        if isLoadingContext {
+            return """
+            I am loading \(context.ref.fullName) from GitHub now.
+
+            Ask your question and I will answer after README, languages, topics, and files are ready.
+            """
+        }
+
+        return """
         Ready. I analyzed \(context.ref.fullName).
 
         Ask about weak points, setup, stack, files, architecture, or next actions.
@@ -1284,6 +1331,19 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
     }
 
     private func answer(for question: String) -> String {
+        if !hasRepoContext {
+            let reason = loadError ?? "Repository metadata is still unavailable."
+            return """
+            I could not load rich GitHub context for \(context.ref.fullName) yet.
+
+            Reason:
+            \(reason)
+
+            I can still use the URL:
+            \(context.ref.url)
+            """
+        }
+
         let lower = question.lowercased()
         if lower.contains("weak") || lower.contains("risk") || lower.contains("problem") || lower.contains("issue") || lower.contains("bug") || lower.contains("риск") || lower.contains("проблем") {
             return """
@@ -1362,6 +1422,20 @@ final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessage
             badges.append("Docker")
         }
         return badges.isEmpty ? ["GitHub"] : Array(badges.prefix(4))
+    }
+
+    private var hasRepoContext: Bool {
+        context.description != nil ||
+            context.primaryLanguage != nil ||
+            !context.languages.isEmpty ||
+            !context.files.isEmpty ||
+            context.readme != nil ||
+            context.stars != nil ||
+            context.forks != nil
+    }
+
+    private var shouldWaitForContextBeforeAnswering: Bool {
+        repoRef.host == "github.com" && !hasRepoContext && loadError == nil
     }
 
     private func formattedDate(_ value: String?) -> String? {
