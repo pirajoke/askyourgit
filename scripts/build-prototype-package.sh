@@ -323,7 +323,7 @@ copy_extension_payload "$APP_RES/extension"
 find "$APP_RES/native-host" -type d -name "__pycache__" -prune -exec rm -rf {} +
 
 if command -v swiftc >/dev/null 2>&1 && [ -f "$ROOT_DIR/macos-companion/AskYourGITCompanion.swift" ]; then
-  if swiftc "$ROOT_DIR/macos-companion/AskYourGITCompanion.swift" -o "$APP_MACOS/AskYourGITCompanion" -framework Cocoa; then
+  if swiftc "$ROOT_DIR/macos-companion/AskYourGITCompanion.swift" -o "$APP_MACOS/AskYourGITCompanion" -framework Cocoa -framework WebKit; then
     chmod +x "$APP_MACOS/AskYourGITCompanion"
   fi
 fi

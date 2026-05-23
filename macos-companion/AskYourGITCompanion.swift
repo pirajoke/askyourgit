@@ -1,8 +1,9 @@
 import Cocoa
+import WebKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var repoWindowController: ReferenceRepoAnalysisWindowController?
+    private var repoWindowController: WebRepoAnalysisWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -93,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url, forType: .string)
 
-        guard let controller = ReferenceRepoAnalysisWindowController(repoURL: url) else {
+        guard let controller = WebRepoAnalysisWindowController(repoURL: url) else {
             show("No repo detected", "Could not parse the repository URL.")
             return
         }
@@ -637,6 +638,786 @@ private final class CompactActionRow: NSControl {
 
     override func mouseDown(with event: NSEvent) {
         sendAction(action, to: target)
+    }
+}
+
+final class WebRepoAnalysisWindowController: NSWindowController, WKScriptMessageHandler {
+    private let repoRef: RepoRef
+    private var context: RepoAnalysisContext
+    private let webView: WKWebView
+
+    init?(repoURL: String) {
+        guard let repoRef = RepoRef(urlString: repoURL) else { return nil }
+        self.repoRef = repoRef
+        self.context = RepoAnalysisContext(ref: repoRef)
+
+        let userContent = WKUserContentController()
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = userContent
+        self.webView = WKWebView(frame: .zero, configuration: configuration)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 432, height: 688),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Ask your GIT"
+        window.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.05, blue: 0.07, alpha: 1)
+        window.contentMinSize = NSSize(width: 432, height: 688)
+        window.contentMaxSize = NSSize(width: 432, height: 688)
+        window.center()
+
+        super.init(window: window)
+        userContent.add(self, name: "askyourgit")
+        buildInterface()
+        renderPage()
+        loadContext()
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    deinit {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "askyourgit")
+    }
+
+    private func buildInterface() {
+        guard let contentView = window?.contentView else { return }
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        webView.navigationDelegate = nil
+        contentView.addSubview(webView)
+        NSLayoutConstraint.activate([
+            webView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            webView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
+    }
+
+    private func loadContext() {
+        Task {
+            do {
+                let loaded = try await GitHubRepoLoader.fetch(ref: repoRef)
+                await MainActor.run {
+                    self.context = loaded
+                    self.renderPage()
+                }
+            } catch {
+                await MainActor.run {
+                    self.renderPage()
+                }
+            }
+        }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any],
+              let action = body["action"] as? String else { return }
+
+        switch action {
+        case "summary":
+            evaluate("showDetail('Quick Summary', \(jsString(overviewText())));")
+        case "ask-mode":
+            evaluate("showChat(\(jsString(initialChatText())));")
+        case "ask":
+            let question = (body["question"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !question.isEmpty else { return }
+            evaluate("appendMessage('assistant', \(jsString(answer(for: question))));")
+        case "claude":
+            sendTerminalCommand("claude \"Analyze \(context.ref.url). Summarize the repo, weak points, setup path, and first implementation step.\"")
+            evaluate("setStatus('Sent to Claude Code');")
+        case "codex":
+            sendTerminalCommand("codex \"Analyze \(context.ref.url). Identify stack, risks, setup path, and next engineering action.\"")
+            evaluate("setStatus('Sent to Codex');")
+        case "cursor":
+            openCursor()
+            evaluate("setStatus('Opening Cursor');")
+        case "copy-url":
+            copyToPasteboard(context.ref.url)
+            evaluate("setStatus('Repo URL copied');")
+        case "share":
+            copyToPasteboard("\(context.ref.fullName) \(context.ref.url)")
+            evaluate("setStatus('Share text copied');")
+        case "settings":
+            evaluate("showDetail('Settings', \(jsString(settingsText())));")
+        case "custom":
+            evaluate("showDetail('Custom Tool', \(jsString("Prototype slot for a saved local command template. Next step: persist a command like my-tool \"Analyze {url}\" and expose it here.")));")
+        default:
+            break
+        }
+    }
+
+    private func renderPage() {
+        webView.loadHTMLString(makeHTML(), baseURL: nil)
+    }
+
+    private func makeHTML() -> String {
+        let badges = currentBadges().map { "<span class=\"chip\">\(html($0))</span>" }.joined()
+        let topicBadges = context.topics.prefix(3).map { "<span class=\"mini-chip\">\(html($0))</span>" }.joined()
+        let topics = topicBadges.isEmpty ? "<span class=\"empty-chip\">No topics</span>" : topicBadges
+        let description = html(context.description ?? "No GitHub description available yet.")
+        let updated = html(formattedDate(context.updatedAt) ?? "Updated just now")
+        let license = html(context.license ?? "LICENSE")
+        let readmeSignal = html(clipped(context.readmeSignal, limit: 320))
+        let files = html(context.files.prefix(10).joined(separator: " · "))
+        let stack = html(context.languageSummary)
+        let stars = html(context.stars.map(String.init) ?? "0")
+        let forks = html(context.forks.map(String.init) ?? "0")
+
+        return """
+        <!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            :root {
+              color-scheme: dark;
+              --bg: #0d111a;
+              --panel: #121824;
+              --panel-2: #192131;
+              --panel-3: #20293a;
+              --line: rgba(219, 230, 255, .16);
+              --text: #eef4ff;
+              --muted: #9aa6ba;
+              --orange: #ff870f;
+              --orange-2: #ff6815;
+              --purple: #9b68ff;
+              --purple-2: #24153e;
+              --cyan: #17c1cc;
+              --green: #5df28b;
+            }
+            * { box-sizing: border-box; }
+            html, body { width: 100%; min-height: 100%; }
+            body {
+              margin: 0;
+              background: linear-gradient(180deg, #121824 0%, #0d111a 100%);
+              color: var(--text);
+              font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+              letter-spacing: 0;
+              overflow: hidden;
+            }
+            button, input { font-family: inherit; }
+            .shell {
+              height: 100vh;
+              display: flex;
+              flex-direction: column;
+              padding: 14px 14px 12px;
+            }
+            .tabs {
+              display: grid;
+              grid-template-columns: repeat(5, minmax(0, 1fr));
+              gap: 7px;
+              padding: 0 0 12px;
+              border-bottom: 1px solid var(--line);
+              flex: 0 0 auto;
+            }
+            .tab {
+              height: 58px;
+              border: 1px solid transparent;
+              border-radius: 13px;
+              background: transparent;
+              color: var(--muted);
+              font-weight: 800;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              gap: 4px;
+              padding: 0 4px;
+              cursor: pointer;
+              user-select: none;
+            }
+            .tab .glyph { font-size: 19px; line-height: 1; }
+            .tab .label {
+              max-width: 100%;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              font-size: 12px;
+            }
+            .tab.active {
+              color: white;
+              background: linear-gradient(180deg, var(--orange), var(--orange-2));
+              box-shadow: 0 12px 26px rgba(255, 120, 12, .26);
+            }
+            .content {
+              flex: 1 1 auto;
+              min-height: 0;
+              overflow: auto;
+              padding: 13px 0 10px;
+              scrollbar-width: thin;
+            }
+            .hero {
+              border: 1px solid var(--line);
+              border-radius: 18px;
+              background:
+                linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025)),
+                var(--panel);
+              padding: 14px;
+              box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+            }
+            .chip-row {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 7px;
+              margin-bottom: 11px;
+            }
+            .chip, .mini-chip, .empty-chip, .count-chip {
+              display: inline-flex;
+              align-items: center;
+              min-height: 24px;
+              padding: 4px 10px;
+              border-radius: 999px;
+              font-weight: 800;
+              color: #d8c7ff;
+              background: var(--purple-2);
+            }
+            .mini-chip, .empty-chip {
+              color: #b9c4d8;
+              background: rgba(255,255,255,.06);
+              font-weight: 700;
+            }
+            .empty-chip { color: #7f8aa0; }
+            .count-chip {
+              min-width: 56px;
+              justify-content: center;
+              color: #ffdfc0;
+              background: rgba(255, 135, 15, .15);
+            }
+            .meta {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 7px 12px;
+              color: var(--muted);
+              font-size: 12px;
+              font-weight: 800;
+              margin: 0 0 10px;
+            }
+            .repo {
+              margin: 0 0 6px;
+              font-size: 22px;
+              line-height: 1.08;
+              font-weight: 850;
+              overflow-wrap: anywhere;
+            }
+            .url {
+              color: #a9b5c8;
+              font-size: 12px;
+              font-weight: 700;
+              overflow-wrap: anywhere;
+            }
+            .status {
+              display: inline-flex;
+              gap: 7px;
+              align-items: center;
+              color: var(--green);
+              font-weight: 850;
+              margin: 10px 0 0;
+            }
+            .quick {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 8px;
+              margin: 12px 0 0;
+            }
+            .metric {
+              min-height: 54px;
+              padding: 10px;
+              border-radius: 14px;
+              border: 1px solid var(--line);
+              background: rgba(255,255,255,.045);
+              overflow: hidden;
+            }
+            .metric b {
+              display: block;
+              color: var(--text);
+              font-size: 14px;
+              margin-bottom: 3px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            .metric span {
+              color: var(--muted);
+              font-size: 11px;
+              font-weight: 750;
+            }
+            .panel {
+              margin-top: 12px;
+              border: 1px solid var(--line);
+              border-radius: 18px;
+              background: rgba(18, 24, 36, .72);
+              overflow: hidden;
+            }
+            .section-title {
+              margin: 0;
+              padding: 10px 13px 7px;
+              color: #8490a5;
+              text-transform: uppercase;
+              font-size: 10px;
+              letter-spacing: .09em;
+              font-weight: 850;
+            }
+            .row {
+              width: 100%;
+              display: flex;
+              align-items: center;
+              gap: 11px;
+              min-height: 46px;
+              padding: 9px 13px;
+              border: 0;
+              border-top: 1px solid rgba(219,230,255,.08);
+              border-radius: 0;
+              background: transparent;
+              color: var(--text);
+              text-align: left;
+              font-size: 16px;
+              font-weight: 800;
+              cursor: pointer;
+            }
+            .row:hover { background: rgba(255,255,255,.055); }
+            .row .icon {
+              width: 25px;
+              height: 25px;
+              display: grid;
+              place-items: center;
+              color: #e7eefc;
+              flex: 0 0 25px;
+              font-size: 18px;
+            }
+            .row .title {
+              min-width: 0;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            .row.accent { color: #a879ff; }
+            .row small {
+              margin-left: auto;
+              flex: 0 0 auto;
+              padding: 3px 8px;
+              border-radius: 999px;
+              background: rgba(154,108,255,.22);
+              color: #d6c4ff;
+              font-size: 11px;
+              font-weight: 850;
+            }
+            .signal-card {
+              margin: 12px 0 0;
+              border: 1px solid var(--line);
+              border-radius: 16px;
+              background: rgba(255,255,255,.035);
+              padding: 12px;
+            }
+            .signal-card h3 {
+              margin: 0 0 6px;
+              font-size: 15px;
+            }
+            .signal-card p {
+              margin: 0;
+              color: #cbd5e6;
+              font-size: 12px;
+              line-height: 1.45;
+            }
+            .detail, .chat {
+              margin-top: 12px;
+              border: 1px solid var(--line);
+              border-radius: 18px;
+              background: var(--panel);
+              overflow: hidden;
+            }
+            .detail h3, .chat h3 {
+              margin: 0;
+              padding: 12px 13px;
+              border-bottom: 1px solid var(--line);
+              font-size: 14px;
+            }
+            .detail pre {
+              margin: 0;
+              max-height: 210px;
+              padding: 13px;
+              overflow: auto;
+              white-space: pre-wrap;
+              color: #dce6f7;
+              font: 12px/1.48 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            }
+            .chat-log {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+              min-height: 126px;
+              max-height: 210px;
+              overflow: auto;
+              padding: 11px;
+            }
+            .msg {
+              max-width: 86%;
+              padding: 9px 11px;
+              border-radius: 13px;
+              white-space: pre-wrap;
+              line-height: 1.42;
+              font-size: 12px;
+            }
+            .assistant { align-self: flex-start; background: #1b2230; border: 1px solid var(--line); }
+            .user { align-self: flex-end; background: linear-gradient(135deg, #8d5cff, #6938ef); }
+            .askbar {
+              display: flex;
+              gap: 8px;
+              padding: 9px;
+              border-top: 1px solid var(--line);
+            }
+            input {
+              flex: 1;
+              min-width: 0;
+              height: 38px;
+              border: 1px solid rgba(154,108,255,.45);
+              border-radius: 11px;
+              outline: none;
+              padding: 0 11px;
+              background: #0d121b;
+              color: var(--text);
+              font-size: 13px;
+            }
+            .send {
+              flex: 0 0 58px;
+              border: 0;
+              border-radius: 11px;
+              background: var(--orange);
+              color: white;
+              font-weight: 850;
+              cursor: pointer;
+            }
+            .hidden { display: none; }
+          </style>
+        </head>
+        <body>
+          <div class="shell">
+            <div class="tabs">
+              <button class="tab active" data-tab="overview"><span class="glyph">▦</span><span class="label">Overview</span></button>
+              <button class="tab" data-tab="codex"><span class="glyph">✽</span><span class="label">Codex</span></button>
+              <button class="tab" data-tab="claude"><span class="glyph">✦</span><span class="label">Claude</span></button>
+              <button class="tab" data-tab="cursor"><span class="glyph">▶</span><span class="label">Cursor</span></button>
+              <button class="tab" data-tab="tools"><span class="glyph">↔</span><span class="label">Tools</span></button>
+            </div>
+
+            <main class="content">
+              <section class="hero">
+                <div class="chip-row">\(badges)</div>
+                <div class="meta"><span>LICENSE: \(license)</span><span>Updated: \(updated)</span></div>
+                <h1 class="repo">\(html(context.ref.fullName))</h1>
+                <div class="url">\(html(context.ref.url))</div>
+                <div class="status" id="status">● Ready</div>
+                <div class="quick">
+                  <div class="metric"><b>\(stars)</b><span>Stars</span></div>
+                  <div class="metric"><b>\(forks)</b><span>Forks</span></div>
+                  <div class="metric"><b>\(html(context.primaryLanguage ?? "Repo"))</b><span>Primary</span></div>
+                </div>
+              </section>
+
+              <div class="panel" id="panel-overview">
+                <div class="section-title">Ask</div>
+                <button class="row" onclick="native('summary')"><span class="icon">ⓘ</span><span class="title">Quick Summary</span></button>
+                <button class="row" onclick="native('ask-mode')"><span class="icon">●</span><span class="title">Ask AI</span></button>
+                <div class="section-title">Install with AI</div>
+                <button class="row" onclick="native('claude')"><span class="icon">◆</span><span class="title">Claude Code</span></button>
+                <button class="row" onclick="native('cursor')"><span class="icon">▶</span><span class="title">Cursor</span></button>
+                <button class="row" onclick="native('codex')"><span class="icon">✽</span><span class="title">Codex</span></button>
+                <button class="row accent" onclick="native('custom')"><span class="icon">+</span><span class="title">Add custom tool</span></button>
+              </div>
+
+              <div class="panel hidden" id="panel-codex">
+                <div class="section-title">Codex workflow</div>
+                <button class="row" onclick="native('codex')"><span class="icon">↵</span><span class="title">Run Codex analysis</span></button>
+                <button class="row" onclick="native('summary')"><span class="icon">ⓘ</span><span class="title">Quick Summary</span></button>
+                <button class="row" onclick="native('copy-url')"><span class="icon">⌘</span><span class="title">Copy repo URL</span></button>
+              </div>
+
+              <div class="panel hidden" id="panel-claude">
+                <div class="section-title">Claude workflow</div>
+                <button class="row" onclick="native('claude')"><span class="icon">↵</span><span class="title">Run Claude Code</span></button>
+                <button class="row" onclick="native('ask-mode')"><span class="icon">●</span><span class="title">Ask AI here first</span></button>
+                <button class="row" onclick="native('copy-url')"><span class="icon">⌘</span><span class="title">Copy repo URL</span></button>
+              </div>
+
+              <div class="panel hidden" id="panel-cursor">
+                <div class="section-title">Cursor workflow</div>
+                <button class="row" onclick="native('cursor')"><span class="icon">▶</span><span class="title">Open clone in Cursor</span></button>
+                <button class="row" onclick="native('copy-url')"><span class="icon">⌘</span><span class="title">Copy repo URL</span></button>
+                <div class="signal-card">
+                  <h3>Root files</h3>
+                  <p>\(files.isEmpty ? "Root files are still loading." : files)</p>
+                </div>
+              </div>
+
+              <div class="panel hidden" id="panel-tools">
+                <div class="section-title">Tools</div>
+                <button class="row accent" onclick="native('custom')"><span class="icon">+</span><span class="title">Add custom tool</span></button>
+                <button class="row" onclick="native('settings')"><span class="icon">⚙</span><span class="title">Settings</span></button>
+                <button class="row" onclick="native('share')"><span class="icon">▣</span><span class="title">Share repo</span><small>copy</small></button>
+              </div>
+
+              <div class="signal-card">
+                <div class="chip-row" style="margin-bottom:9px">\(topics)</div>
+                <h3>Quick signals</h3>
+                <p><b>Stack:</b> \(stack)</p>
+                <p style="margin-top:7px"><b>README:</b> \(readmeSignal)</p>
+                <p style="margin-top:7px"><b>About:</b> \(description)</p>
+              </div>
+
+              <section class="detail hidden" id="detail">
+                <h3 id="detail-title"></h3>
+                <pre id="detail-body"></pre>
+              </section>
+
+              <section class="chat hidden" id="chat">
+                <h3>Ask AI</h3>
+                <div class="chat-log" id="chat-log"></div>
+                <div class="askbar">
+                  <input id="question" placeholder="Ask about this repo..." onkeydown="if(event.key==='Enter') askQuestion()">
+                  <button class="send" onclick="askQuestion()">Ask</button>
+                </div>
+              </section>
+            </main>
+          </div>
+          <script>
+            function native(action, payload = {}) {
+              window.webkit.messageHandlers.askyourgit.postMessage(Object.assign({ action }, payload));
+            }
+            document.querySelectorAll('.tab').forEach(tab => {
+              tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+                document.getElementById('panel-' + tab.dataset.tab).classList.remove('hidden');
+                hideTransient();
+              });
+            });
+            function hideTransient() {
+              document.getElementById('detail').classList.add('hidden');
+              document.getElementById('chat').classList.add('hidden');
+            }
+            function setStatus(text) {
+              document.getElementById('status').textContent = '● ' + text;
+            }
+            function showDetail(title, text) {
+              document.getElementById('chat').classList.add('hidden');
+              document.getElementById('detail-title').textContent = title;
+              document.getElementById('detail-body').textContent = text;
+              document.getElementById('detail').classList.remove('hidden');
+            }
+            function showChat(initial) {
+              document.getElementById('detail').classList.add('hidden');
+              const chat = document.getElementById('chat');
+              const log = document.getElementById('chat-log');
+              if (!log.dataset.ready) {
+                appendMessage('assistant', initial);
+                log.dataset.ready = '1';
+              }
+              chat.classList.remove('hidden');
+              document.getElementById('question').focus();
+            }
+            function appendMessage(role, text) {
+              const node = document.createElement('div');
+              node.className = 'msg ' + role;
+              node.textContent = text;
+              const log = document.getElementById('chat-log');
+              log.appendChild(node);
+              log.scrollTop = log.scrollHeight;
+            }
+            function askQuestion() {
+              const input = document.getElementById('question');
+              const question = input.value.trim();
+              if (!question) return;
+              input.value = '';
+              appendMessage('user', question);
+              native('ask', { question });
+            }
+          </script>
+        </body>
+        </html>
+        """
+    }
+
+    private func overviewText() -> String {
+        """
+        \(context.description ?? "No GitHub description available.")
+
+        Repository:
+        \(context.ref.fullName)
+
+        Stack:
+        \(context.languageSummary)
+
+        Signals:
+        Stars: \(context.stars.map { String($0) } ?? "unknown")
+        Forks: \(context.forks.map { String($0) } ?? "unknown")
+        License: \(context.license ?? "unknown")
+        Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(12).joined(separator: ", "))
+
+        Root files:
+        \(context.files.prefix(28).joined(separator: ", "))
+
+        README signal:
+        \(clipped(context.readmeSignal, limit: 780))
+        """
+    }
+
+    private func initialChatText() -> String {
+        """
+        Ready. I analyzed \(context.ref.fullName).
+
+        Ask about weak points, setup, stack, files, architecture, or next actions.
+        """
+    }
+
+    private func settingsText() -> String {
+        """
+        Desktop companion: Connected
+        Bridge: installed from the menu bar app
+        Repo detection: active browser tab, then open GitHub/GitLab/Bitbucket tabs
+
+        Use Install Browser Bridge from the menu to refresh native messaging.
+        """
+    }
+
+    private func answer(for question: String) -> String {
+        let lower = question.lowercased()
+        if lower.contains("weak") || lower.contains("risk") || lower.contains("problem") || lower.contains("issue") || lower.contains("bug") || lower.contains("риск") || lower.contains("проблем") {
+            return """
+            Weak points to inspect first:
+
+            1. Setup reliability: can a new user run it from README only?
+            2. Runtime assumptions: env vars, local services, auth, and browser permissions.
+            3. Tests for the main workflow.
+            4. UI timing: anything that depends on page reloads or active browser state.
+
+            Stack signal:
+            \(context.languageSummary)
+            """
+        }
+        if lower.contains("install") || lower.contains("run") || lower.contains("setup") || lower.contains("установ") || lower.contains("запуск") {
+            return """
+            Practical setup path:
+
+            1. Clone \(context.ref.url)
+            2. Read README first.
+            3. Inspect root files: \(context.files.prefix(16).joined(separator: ", "))
+            4. If package.json exists, check scripts for dev, build, and test commands.
+            """
+        }
+        if lower.contains("file") || lower.contains("structure") || lower.contains("архит") || lower.contains("файл") || lower.contains("структ") {
+            return "Root structure:\n\n\(context.files.prefix(42).joined(separator: ", "))"
+        }
+        if lower.contains("stack") || lower.contains("language") || lower.contains("tech") || lower.contains("язык") || lower.contains("стек") {
+            return "Detected stack:\n\n\(context.languageSummary)\n\nPrimary language: \(context.primaryLanguage ?? "unknown")."
+        }
+        return """
+        Summary:
+        \(context.description ?? "No GitHub description available.")
+
+        Key signals:
+        - Languages: \(context.languageSummary)
+        - Topics: \(context.topics.isEmpty ? "none found" : context.topics.prefix(10).joined(separator: ", "))
+        - Root files: \(context.files.prefix(18).joined(separator: ", "))
+        """
+    }
+
+    private func sendTerminalCommand(_ command: String) {
+        copyToPasteboard(command)
+        let script = """
+        tell application "Terminal"
+          activate
+          if (count of windows) > 0 then
+            do script \(appleScriptString(command)) in front window
+          else
+            do script \(appleScriptString(command))
+          end if
+        end tell
+        """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        try? process.run()
+    }
+
+    private func openCursor() {
+        let repo = "\(context.ref.url).git"
+        let encodedRepo = repo.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? repo
+        let value = "cursor://vscode.git/clone?url=\(encodedRepo)"
+        if let url = URL(string: value), NSWorkspace.shared.open(url) {
+            return
+        }
+        copyToPasteboard(repo)
+    }
+
+    private func currentBadges() -> [String] {
+        var badges = context.languages.prefix(2).map { $0.name }
+        if badges.isEmpty, let primary = context.primaryLanguage {
+            badges = [primary]
+        }
+        if context.files.contains(where: { $0.lowercased().contains("docker") }) {
+            badges.append("Docker")
+        }
+        return badges.isEmpty ? ["GitHub"] : Array(badges.prefix(4))
+    }
+
+    private func formattedDate(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: value) else {
+            return value.count >= 10 ? String(value.prefix(10)) : nil
+        }
+        let display = DateFormatter()
+        display.locale = Locale(identifier: "en_US_POSIX")
+        display.dateFormat = "MMM d, yyyy"
+        return display.string(from: date)
+    }
+
+    private func clipped(_ value: String, limit: Int) -> String {
+        let cleaned = value.replacingOccurrences(of: "\r", with: "")
+        guard cleaned.count > limit else { return cleaned }
+        let prefix = cleaned.prefix(limit)
+        if let lastSpace = prefix.lastIndex(where: { $0.isWhitespace }) {
+            return String(prefix[..<lastSpace]) + "..."
+        }
+        return String(prefix) + "..."
+    }
+
+    private func html(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    private func jsString(_ value: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [value]),
+              let encoded = String(data: data, encoding: .utf8),
+              encoded.count >= 2 else {
+            return "\"\""
+        }
+        return String(encoded.dropFirst().dropLast())
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+    }
+
+    private func appleScriptString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
+    }
+
+    private func evaluate(_ script: String) {
+        webView.evaluateJavaScript(script, completionHandler: nil)
     }
 }
 
