@@ -10,8 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "point.3.connected.trianglepath.dotted", accessibilityDescription: "Ask your GIT")
-            button.image?.isTemplate = true
+            button.image = statusBarIcon()
             button.toolTip = "Ask your GIT Companion"
         }
 
@@ -35,6 +34,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = self
         return item
+    }
+
+    private func statusBarIcon() -> NSImage? {
+        let resourcePath = Bundle.main.resourcePath ?? ""
+        let candidates = [
+            "\(resourcePath)/extension/icons/icon128.png",
+            "\(resourcePath)/AppIcon.icns",
+        ]
+
+        for path in candidates {
+            if let image = NSImage(contentsOfFile: path) {
+                image.size = NSSize(width: 24, height: 24)
+                image.isTemplate = false
+                return image
+            }
+        }
+
+        let fallback = NSImage(systemSymbolName: "point.3.connected.trianglepath.dotted", accessibilityDescription: "Ask your GIT")
+        fallback?.isTemplate = true
+        return fallback
     }
 
     @objc private func installBridge() {
