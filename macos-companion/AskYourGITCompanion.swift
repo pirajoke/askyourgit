@@ -37,23 +37,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func statusBarIcon() -> NSImage? {
-        let resourcePath = Bundle.main.resourcePath ?? ""
-        let candidates = [
-            "\(resourcePath)/extension/icons/icon128.png",
-            "\(resourcePath)/AppIcon.icns",
-        ]
+        let image = NSImage(size: NSSize(width: 24, height: 24), flipped: false) { rect in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
 
-        for path in candidates {
-            if let image = NSImage(contentsOfFile: path) {
-                image.size = NSSize(width: 24, height: 24)
-                image.isTemplate = false
-                return image
+            context.saveGState()
+            context.setFillColor(NSColor.black.cgColor)
+            context.setStrokeColor(NSColor.black.cgColor)
+
+            let diamond = CGMutablePath()
+            diamond.move(to: CGPoint(x: 12, y: 2.6))
+            diamond.addLine(to: CGPoint(x: 21.4, y: 12))
+            diamond.addLine(to: CGPoint(x: 12, y: 21.4))
+            diamond.addLine(to: CGPoint(x: 2.6, y: 12))
+            diamond.closeSubpath()
+            context.addPath(diamond)
+            context.fillPath()
+
+            let bubble = CGMutablePath()
+            bubble.addRoundedRect(in: CGRect(x: 13.3, y: 15.0, width: 8.4, height: 5.8), cornerWidth: 2.1, cornerHeight: 2.1)
+            bubble.move(to: CGPoint(x: 16.2, y: 15.2))
+            bubble.addLine(to: CGPoint(x: 17.2, y: 13.6))
+            bubble.addLine(to: CGPoint(x: 18.1, y: 15.2))
+            bubble.closeSubpath()
+            context.addPath(bubble)
+            context.fillPath()
+
+            context.setBlendMode(.clear)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.setLineWidth(2.1)
+
+            let branch = CGMutablePath()
+            branch.move(to: CGPoint(x: 8.2, y: 14.8))
+            branch.addLine(to: CGPoint(x: 12.0, y: 11.1))
+            branch.addLine(to: CGPoint(x: 15.8, y: 14.8))
+            context.addPath(branch)
+            context.strokePath()
+
+            for point in [CGPoint(x: 8.2, y: 14.8), CGPoint(x: 12.0, y: 11.1), CGPoint(x: 15.8, y: 14.8)] {
+                context.fillEllipse(in: CGRect(x: point.x - 1.75, y: point.y - 1.75, width: 3.5, height: 3.5))
             }
-        }
 
-        let fallback = NSImage(systemSymbolName: "point.3.connected.trianglepath.dotted", accessibilityDescription: "Ask your GIT")
-        fallback?.isTemplate = true
-        return fallback
+            let question = "?" as NSString
+            question.draw(
+                at: CGPoint(x: 16.2, y: 15.1),
+                withAttributes: [
+                    .font: NSFont.boldSystemFont(ofSize: 6.5),
+                    .foregroundColor: NSColor.clear,
+                ]
+            )
+
+            context.restoreGState()
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     @objc private func installBridge() {
