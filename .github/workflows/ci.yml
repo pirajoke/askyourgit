@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate extension JavaScript
+        run: |
+          node --check background.js
+          node --check content.js
+          node --check popup.js
+          node --input-type=module --check < proxy/worker.js
+      - name: Validate manifest
+        run: node -e 'JSON.parse(require("node:fs").readFileSync("manifest.json", "utf8"))'
+      - name: Validate native-host and packaging scripts
+        run: |
+          python3 -m py_compile native-host/smile-bridge.py
+          bash -n native-host/install.sh
+          bash -n scripts/build-prototype-package.sh
