@@ -3,7 +3,7 @@
 > Ask AI about any GitHub, GitLab, or Bitbucket repo. Get instant summaries, chat with AI about the code, then install with one click using Claude Code, Cursor, Codex, or your own tools.
 
 ![Ask your GIT](https://img.shields.io/badge/Ask_your-GIT_%E2%9A%A1-blueviolet?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-3.0.1-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-3.0.4-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Chrome-green?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
