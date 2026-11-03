@@ -19,17 +19,16 @@ FEATURES:
 - Interactive AI chat about any repository
 - Smart stack detection (Node.js, Python, Rust, Go, Docker)
 - Repository trust info (stars, license, last commit)
-- 25+ tool presets (Windsurf, Zed, JetBrains, VS Code, and more)
+- Tool presets plus custom install commands
 - Custom install commands with placeholders
-- Terminal Bridge — execute directly in your terminal
+- Optional Terminal Bridge (macOS companion app, installed separately) to run the command in your terminal
 - Keyboard shortcut (Cmd+Shift+I / Ctrl+Shift+I)
 - Dark mode support
-- Zero tracking, zero analytics, fully open source
+- No tracking, no analytics, fully open source
 
 PRIVACY:
-- No data collection
-- No external tracking
-- No analytics
+- AI features send the repository info you are viewing and your questions to our AI proxy (powered by Anthropic Claude), or directly to Anthropic if you use your own API key. Nothing is sent until you click Quick Summary or Ask AI.
+- No analytics, no tracking, no ads, no data sales
 - Fully open source: github.com/pirajoke/askyourgit
 
 ## Category

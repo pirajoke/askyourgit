@@ -1,10 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Ask your GIT — AI for any repo",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "Ask AI about any GitHub repo and install with one click. Claude Code, Cursor, Codex & more.",
-  "permissions": ["clipboardWrite", "storage", "nativeMessaging"],
-  "host_permissions": ["https://api.anthropic.com/v1/messages", "https://vercel-nu-wheat.vercel.app/api/chat", "https://api.github.com/repos/*", "https://smile-ai-proxy.thegreatgatsby456.workers.dev/*"],
+  "permissions": [
+    "clipboardWrite",
+    "storage",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://api.anthropic.com/v1/messages",
+    "https://vercel-nu-wheat.vercel.app/api/chat",
+    "https://api.github.com/repos/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
@@ -30,8 +38,12 @@
         "https://bitbucket.org/*/*",
         "https://bitbucket.org/*/*/*"
       ],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],

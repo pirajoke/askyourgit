@@ -12,7 +12,7 @@ async function getInstallationId() {
   return id;
 }
 
-// --- Analytics (serialized to prevent race conditions) ---
+// --- Local usage counters (stored only in chrome.storage, never sent anywhere) ---
 
 let statsQueue = Promise.resolve();
 
@@ -30,14 +30,6 @@ function incrementStat(key) {
     stats[key] = (stats[key] || 0) + 1;
     return true;
   });
-}
-
-function trackEvent(action, extras = {}) {
-  fetch('https://smile-ai-proxy.thegreatgatsby456.workers.dev/event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...extras }),
-  }).catch(() => {});
 }
 
 function trackRepo(owner, repo) {
@@ -422,7 +414,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === 'track-install') {
     incrementStat('installs');
-    trackEvent('install', msg.tool ? { tool: msg.tool } : {});
     return;
   }
 
@@ -451,7 +442,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       if (result.text) {
         incrementStat('summaries');
-        trackEvent('summary');
         sendResponse({ summary: result.text });
       } else {
         sendResponse({ error: result.error });
@@ -472,7 +462,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       if (result.text) {
         incrementStat('chats');
-        trackEvent('chat');
         sendResponse({ reply: result.text, model: result.model });
       } else {
         const lastUserMessage = [...(msg.messages || [])].reverse().find((m) => m.role === 'user');

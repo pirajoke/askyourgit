@@ -93,6 +93,14 @@ def is_command_allowed(command):
         r'^mkdir -p [A-Za-z0-9._-]+ && cd [A-Za-z0-9._-]+ && codex\s',
         r'^open -a\s',                            # open app (Cursor etc)
     ]
+    # Reject shell metacharacters that would let a crafted command smuggle in
+    # extra commands after an allowed prefix (e.g. `claude "x"; curl ... | sh`).
+    forbidden = ['`', '$(', '${', '\n', '\r', '|', '<(', '>(']
+    if any(token in command for token in forbidden):
+        return False
+    # Commands with a quoted prompt must contain exactly one quoted argument.
+    if re.match(r'^(claude|mkdir)\s', command) and (command.count('"') != 2 or not command.endswith('"')):
+        return False
     return any(re.match(pattern, command) for pattern in allowed_patterns)
 
 
