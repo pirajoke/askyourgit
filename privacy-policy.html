@@ -14,42 +14,43 @@
 </head>
 <body>
   <h1>Ask your GIT — Privacy Policy</h1>
-  <p class="updated">Last updated: April 10, 2026</p>
+  <p class="updated">Last updated: November 3, 2026</p>
 
   <h2>Overview</h2>
-  <p>Ask your GIT is a browser extension that lets you ask AI about any GitHub, GitLab, or Bitbucket repository and install projects with one click. We are committed to protecting your privacy.</p>
+  <p>Ask your GIT is a browser extension that adds an AI assistant to GitHub, GitLab, and Bitbucket repository pages. It can summarize a repository, answer questions about it, and copy or launch install commands for local coding tools.</p>
 
-  <h2>Data Collection</h2>
-  <p><strong>We do not collect, transmit, or store any personal data.</strong></p>
-  <p>Specifically, the extension:</p>
+  <h2>What data the extension sends, and where</h2>
+  <p>The extension only sends data when you use an AI feature (Quick Summary or Ask AI). It never runs in the background on other websites and does not collect your browsing history.</p>
   <ul>
-    <li>Does <strong>not</strong> track your browsing history</li>
-    <li>Does <strong>not</strong> send any data to external servers</li>
-    <li>Does <strong>not</strong> use analytics, telemetry, or tracking scripts</li>
-    <li>Does <strong>not</strong> read cookies or authentication tokens</li>
-    <li>Does <strong>not</strong> access any data outside of supported repository pages</li>
+    <li><strong>Repository content you are viewing</strong> (repository name, description, topics, file list, languages, and up to 4,000 characters of the README) and <strong>the questions you type into the chat</strong> are sent to generate the AI answer.</li>
+    <li>By default this goes to our AI proxy at <code>vercel-nu-wheat.vercel.app</code>, which forwards it to Anthropic's Claude API and returns the answer. The proxy sees your IP address and a random installation ID (generated on install, not linked to your identity) and uses them only for rate limiting. The proxy does not store the content of your requests or answers.</li>
+    <li>If you add your own Claude API key, requests go directly from your browser to <code>api.anthropic.com</code> and are governed by <a href="https://www.anthropic.com/legal/privacy">Anthropic's privacy policy</a>. Your key is stored only on your device (<code>chrome.storage.local</code>) and is never sent to us.</li>
+    <li>To build repository context, the extension calls the public GitHub API (<code>api.github.com</code>) for the repository you are viewing. No GitHub credentials are used or read.</li>
   </ul>
+  <p>We do not sell data, use it for advertising, or use it for any purpose other than answering your request. We do not use analytics or tracking.</p>
 
-  <h2>Local Storage</h2>
-  <p>The extension stores the following data locally on your device using Chrome's built-in storage API (<code>chrome.storage.sync</code>):</p>
+  <h2>Data stored on your device</h2>
   <ul>
-    <li><strong>User preferences:</strong> default install tool, emoji pack selection, custom command template</li>
-    <li><strong>NFT share history:</strong> last 10 emoji shares (emoji, public repo path, tier). This data contains only publicly available repository paths, not private information.</li>
+    <li><strong>Preferences</strong> (default tool, custom commands, emoji pack, terminal choice) in <code>chrome.storage.sync</code>, which Chrome may sync across your own browsers.</li>
+    <li><strong>Local usage counters</strong> (number of summaries, chats, installs, and the last 100 repository paths you analyzed) and <strong>emoji card share history</strong> (last 10 shares), in <code>chrome.storage.sync</code>. These are shown to you in the popup and are never sent to us.</li>
+    <li><strong>Your optional Claude API key</strong> and the random installation ID, in <code>chrome.storage.local</code>.</li>
   </ul>
-  <p>This data syncs across your Chrome browsers via your Google account but is never sent to any third party.</p>
+  <p>Removing the extension deletes this data.</p>
 
   <h2>Permissions</h2>
   <ul>
-    <li><strong>clipboardWrite:</strong> To copy install commands to your clipboard</li>
-    <li><strong>storage:</strong> To save your preferences locally</li>
-    <li><strong>nativeMessaging:</strong> To optionally send commands to your local terminal (requires separate opt-in installation)</li>
+    <li><strong>storage:</strong> save your preferences and the data listed above.</li>
+    <li><strong>clipboardWrite:</strong> copy install commands to your clipboard when you click a tool.</li>
+    <li><strong>nativeMessaging:</strong> optionally send an install command to your local terminal through the separately installed Ask your GIT Companion. Nothing is sent unless you install the companion and click an install button.</li>
+    <li><strong>Host access to api.github.com, api.anthropic.com and our AI proxy:</strong> fetch repository info and AI answers, as described above.</li>
+    <li><strong>Content scripts on github.com, gitlab.com and bitbucket.org:</strong> show the Ask your GIT button on repository pages.</li>
   </ul>
 
-  <h2>Third-Party Services</h2>
-  <p>The extension does not integrate with any third-party services. Share buttons (Telegram, WhatsApp, X) open standard share URLs in a new tab — no data is sent until you explicitly confirm in the respective service.</p>
+  <h2>Sharing</h2>
+  <p>Share buttons (Telegram, WhatsApp, X) open the service's standard share page in a new tab. Nothing is posted until you confirm there.</p>
 
   <h2>Native Messaging Host</h2>
-  <p>The optional native messaging component runs locally on your machine and executes terminal commands. It only accepts commands matching a strict allowlist (git clone, claude, codex, open). It does not communicate with any external server.</p>
+  <p>The optional companion runs locally on your Mac and opens your terminal with a command you clicked. It only accepts commands matching a strict allowlist (git clone, claude, codex, open) and does not communicate with any external server.</p>
 
   <h2>Open Source</h2>
   <p>This extension is fully open source. You can review the complete source code at <a href="https://github.com/pirajoke/askyourgit">github.com/pirajoke/askyourgit</a>.</p>

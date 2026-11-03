@@ -196,7 +196,7 @@
     return commands;
   }
 
-  // --- NFT Emoji Share ---
+  // --- Emoji card share ---
 
   const EMOJI_PACKS = {
     animals: {
@@ -260,7 +260,7 @@
     return { emoji: fb[0], tier: 'common', label: 'Common' };
   }
 
-  // --- NFT Stats ---
+  // --- Emoji card stats ---
 
   function recordRoll(nft, repoUrl) {
     chrome.storage.sync.get({ nftStats: { total: 0, tiers: {}, history: [] } }, (data) => {
@@ -1206,7 +1206,7 @@
         const packLabel = EMOJI_PACKS[settings.emojiPack]?.label || 'Animals';
         const shareItem = makeRow({
           icon: '🎲',
-          label: 'Share NFT',
+          label: 'Share emoji card',
           badge: packLabel,
           muted: true,
           onClick: (e) => {
